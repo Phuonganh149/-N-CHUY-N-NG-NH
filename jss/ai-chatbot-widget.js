@@ -20,6 +20,11 @@
       placeholder: 'Nhập yêu cầu quản lý CV, tiêu chí tuyển dụng, vị trí hoặc hồ sơ ứng viên...',
       cvButton: 'Chấm điểm CV đang chọn',
       cvHint: 'Nhập vị trí tuyển dụng hoặc tiêu chí bắt buộc để AI chấm mức phù hợp CV.',
+      quickPrompts: [
+        'Tóm tắt các vị trí đang tuyển',
+        'Gợi ý câu hỏi phỏng vấn cho Frontend Developer',
+        'Checklist chấm CV trong hệ thống CVMS',
+      ],
     }
     : {
       mode: 'user_career',
@@ -31,7 +36,14 @@
       placeholder: 'Hỏi về ngành nghề, kỹ năng, mức lương, phỏng vấn, tìm việc, chuyển ngành hoặc CV...',
       cvButton: 'Gợi ý cải thiện CV',
       cvHint: 'Tính năng này đọc CV để gợi ý chỉnh sửa nội dung, bố cục và mức độ phù hợp với ngành ứng tuyển.',
+      quickPrompts: [
+        'Có việc nào đang tuyển ở Hà Nội?',
+        'Mức lương Frontend Developer khoảng bao nhiêu?',
+        'Tôi cần học kỹ năng gì để phỏng vấn tốt?',
+      ],
     };
+  const historyKey = `cvms_ai_history_${roleConfig.mode}`;
+  state.history = loadHistory();
 
   const style = document.createElement('style');
   style.textContent = `
@@ -50,6 +62,11 @@
     .cvms-ai-tab{flex:1;border:0;background:transparent;padding:10px;font-weight:700;color:#64748b;cursor:pointer}
     .cvms-ai-tab.active{background:#fff;color:#4f46e5}
     .cvms-ai-pane{display:none;flex:1;min-height:0;flex-direction:column}.cvms-ai-pane.active{display:flex}
+    .cvms-ai-tools{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #e2e8f0;background:#fff}
+    .cvms-ai-suggestions{display:flex;gap:6px;overflow:auto;flex:1}
+    .cvms-ai-chip,.cvms-ai-clear{border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:999px;font-size:12px;font-weight:700;padding:7px 10px;white-space:nowrap;cursor:pointer}
+    .cvms-ai-chip:hover,.cvms-ai-clear:hover{border-color:#4f46e5;color:#4f46e5}
+    .cvms-ai-clear{flex:0 0 auto}
     .cvms-ai-msgs{flex:1;overflow:auto;padding:14px;background:#f8fafc}
     .cvms-ai-msg{max-width:86%;margin:0 0 10px;padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.55;white-space:pre-wrap}
     .cvms-ai-user{margin-left:auto;background:#4f46e5;color:#fff;border-bottom-right-radius:4px}
@@ -86,6 +103,12 @@
         <button class="cvms-ai-tab" data-tab="cv">${roleConfig.cvTab}</button>
       </nav>
       <div class="cvms-ai-pane active" data-pane="chat">
+        <div class="cvms-ai-tools">
+          <div class="cvms-ai-suggestions">
+            ${roleConfig.quickPrompts.map((prompt) => `<button class="cvms-ai-chip" type="button" data-prompt="${prompt}">${prompt}</button>`).join('')}
+          </div>
+          <button class="cvms-ai-clear" id="cvms-ai-clear" type="button" title="Xóa lịch sử chat">Xóa</button>
+        </div>
         <div class="cvms-ai-msgs" id="cvms-ai-msgs">
           <div class="cvms-ai-msg cvms-ai-bot">${roleConfig.hello}</div>
         </div>
@@ -147,6 +170,14 @@
     };
   });
   document.getElementById('cvms-ai-send').onclick = sendChat;
+  document.getElementById('cvms-ai-clear').onclick = clearHistory;
+  document.querySelectorAll('.cvms-ai-chip').forEach((button) => {
+    button.addEventListener('click', () => {
+      input.value = button.dataset.prompt || '';
+      input.focus();
+      sendChat();
+    });
+  });
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -156,12 +187,42 @@
   document.getElementById('cvms-ai-cv-analyze').onclick = analyzeCv;
   window.CVMS_AI = { open: openWidget, close: closeWidget, score: () => runBatchAssessment(true) };
 
+  renderStoredHistory();
+
   function addMsg(role, text) {
     const div = document.createElement('div');
     div.className = `cvms-ai-msg cvms-ai-${role === 'user' ? 'user' : 'bot'}`;
     div.textContent = text;
     msgs.appendChild(div);
     msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function loadHistory() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(historyKey) || '[]');
+      return Array.isArray(saved) ? saved.slice(-12) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveHistory() {
+    sessionStorage.setItem(historyKey, JSON.stringify(state.history.slice(-12)));
+  }
+
+  function renderStoredHistory() {
+    state.history.slice(-8).forEach((item) => {
+      const text = item.parts?.[0]?.text || item.content || '';
+      if (text) addMsg(item.role === 'model' ? 'model' : 'user', text);
+    });
+  }
+
+  function clearHistory() {
+    state.history = [];
+    sessionStorage.removeItem(historyKey);
+    msgs.innerHTML = '';
+    addMsg('model', roleConfig.hello);
+    flash('Đã xóa lịch sử hội thoại.');
   }
 
   async function sendChat() {
@@ -182,15 +243,19 @@
       const data = await res.json();
       loadingNode.remove();
       if (!res.ok) {
-        addMsg('bot', 'Lỗi: ' + (data.error || res.statusText));
+        addMsg('bot', data.error || 'Chatbot đang gặp lỗi tạm thời. Vui lòng thử lại sau.');
       } else {
-        addMsg('bot', data.reply || 'Không có phản hồi.');
+        const reply = data.reply || 'Không có phản hồi.';
+        addMsg('bot', reply);
+        if (data.fallback || data.warning) flash(data.warning || 'Đang dùng phản hồi dự phòng.');
         state.history.push({ role: 'user', parts: [{ text }] });
-        state.history.push({ role: 'model', parts: [{ text: data.reply || '' }] });
+        state.history.push({ role: 'model', parts: [{ text: reply }] });
+        state.history = state.history.slice(-12);
+        saveHistory();
       }
     } catch (error) {
       loadingNode.remove();
-      addMsg('bot', 'Không kết nối được backend: ' + error.message);
+      addMsg('bot', 'Không kết nối được chatbot. Kiểm tra server local rồi thử lại.');
     } finally {
       state.loading = false;
     }

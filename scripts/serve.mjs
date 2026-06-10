@@ -617,7 +617,6 @@ async function chatWithAi(res, body) {
   const mode = body.mode === 'admin_cv_manage' ? 'admin_cv_manage' : 'user_career';
 
   if (!message) return sendJson(res, 400, { error: 'Tin nhắn trống' });
-  if (!apiKey) return sendJson(res, 400, { error: 'Thiếu GROQ_API_KEY trong serve.mjs CODE_KEYS hoặc .env' });
 
   const jobs = await store.getJobs();
   const applications = await store.getApplications();
@@ -625,6 +624,19 @@ async function chatWithAi(res, body) {
   const intent = detectIntent(message);
   const category = detectCategory(message);
   const context = buildChatContext(jobs, applications, companies, intent, category, mode);
+
+  if (!apiKey) {
+    return sendJson(res, 200, {
+      reply: buildFallbackChatReply({ message, jobs, applications, companies, intent, category, mode }),
+      intent,
+      category,
+      mode,
+      fallback: true,
+      warning: 'Chưa cấu hình GROQ_API_KEY nên chatbot đang dùng phản hồi dự phòng từ dữ liệu CVMS.',
+      model_info: { chat_model: 'local-fallback', database: store.provider }
+    });
+  }
+
   const systemPrompt = mode === 'admin_cv_manage'
     ? `Bạn là AI quản lý CV cho Admin nền tảng CVMS. Nhiệm vụ chính: hỗ trợ lọc, so sánh, đánh giá, chấm điểm CV/ứng viên theo vị trí tuyển dụng, tiêu chí tuyển dụng và dữ liệu toàn hệ thống nhiều doanh nghiệp.
 Trả lời bằng tiếng Việt, thực tế, có cấu trúc rõ:
@@ -670,7 +682,17 @@ Không trả lời như admin nội bộ, không tiết lộ dữ liệu ứng v
       })
     });
     const data = await upstream.json();
-    if (!upstream.ok) return sendJson(res, upstream.status, { error: data.error?.message || data.error || 'Groq API error' });
+    if (!upstream.ok) {
+      return sendJson(res, 200, {
+        reply: buildFallbackChatReply({ message, jobs, applications, companies, intent, category, mode }),
+        intent,
+        category,
+        mode,
+        fallback: true,
+        warning: `Groq API đang lỗi (${data.error?.message || data.error || upstream.status}). Chatbot đã dùng phản hồi dự phòng.`,
+        model_info: { chat_model: 'local-fallback', database: store.provider }
+      });
+    }
     return sendJson(res, 200, {
       reply: data.choices?.[0]?.message?.content || 'Không có phản hồi.',
       intent,
@@ -681,32 +703,42 @@ Không trả lời như admin nội bộ, không tiết lộ dữ liệu ứng v
       model_info: { chat_model: groqModel, database: store.provider }
     });
   } catch (error) {
-    return sendJson(res, 500, { error: `Lỗi gọi AI: ${error.message}` });
+    return sendJson(res, 200, {
+      reply: buildFallbackChatReply({ message, jobs, applications, companies, intent, category, mode }),
+      intent,
+      category,
+      mode,
+      fallback: true,
+      warning: `Không gọi được Groq API (${error.message}). Chatbot đã dùng phản hồi dự phòng.`,
+      model_info: { chat_model: 'local-fallback', database: store.provider }
+    });
   }
 }
 
 function detectIntent(text) {
   const value = text.toLowerCase();
-  if (/(lương|salary|thu nhập|mức lương)/i.test(value)) return 'hoi_luong';
-  if (/(cv|hồ sơ|resume|phân tích|sửa cv)/i.test(value)) return 'hoi_cv';
-  if (/(phỏng vấn|interview|câu hỏi)/i.test(value)) return 'hoi_phongvan';
-  if (/(kỹ năng|skill|cần học|yêu cầu)/i.test(value)) return 'hoi_kynang';
-  if (/(xu hướng|hot|ngành nào)/i.test(value)) return 'hoi_xhuong';
+  const plain = normalizeSearchText(text);
+  if (/(lương|salary|thu nhập|mức lương)/i.test(value) || /\b(luong|salary|thu nhap|muc luong)\b/i.test(plain)) return 'hoi_luong';
+  if (/(cv|hồ sơ|resume|phân tích|sửa cv)/i.test(value) || /\b(cv|ho so|resume|phan tich|sua cv)\b/i.test(plain)) return 'hoi_cv';
+  if (/(phỏng vấn|interview|câu hỏi)/i.test(value) || /\b(phong van|interview|cau hoi)\b/i.test(plain)) return 'hoi_phongvan';
+  if (/(kỹ năng|skill|cần học|yêu cầu)/i.test(value) || /\b(ky nang|skill|can hoc|yeu cau)\b/i.test(plain)) return 'hoi_kynang';
+  if (/(xu hướng|hot|ngành nào)/i.test(value) || /\b(xu huong|hot|nganh nao)\b/i.test(plain)) return 'hoi_xhuong';
   return 'tim_viec';
 }
 
 function detectCategory(text) {
   const value = text.toLowerCase();
-  if (/(dev|developer|lập trình|frontend|backend|data|ai|python|node|react|it|công nghệ)/i.test(value)) return 'cong_nghe';
-  if (/(kế toán|kiểm toán|tài chính|ngân hàng|finance)/i.test(value)) return 'tai_chinh';
-  if (/(marketing|sales|kinh doanh|e-commerce|thương mại)/i.test(value)) return 'kinh_doanh';
-  if (/(nhân sự|hr|tuyển dụng)/i.test(value)) return 'nhan_su';
-  if (/(thiết kế|design|ui|ux|figma|sáng tạo|creative)/i.test(value)) return 'thiet_ke';
-  if (/(logistics|chuỗi cung ứng|supply|vận hành|operation|ops|kho|vận tải)/i.test(value)) return 'van_hanh_logistics';
-  if (/(giáo dục|teacher|giảng viên|đào tạo|training)/i.test(value)) return 'giao_duc';
-  if (/(y tế|bác sĩ|dược|điều dưỡng|health|medical)/i.test(value)) return 'y_te';
-  if (/(pháp lý|luật|legal|compliance)/i.test(value)) return 'phap_ly';
-  if (/(sản xuất|manufacturing|qa|qc|bảo trì|cơ khí|điện)/i.test(value)) return 'san_xuat_ky_thuat';
+  const plain = normalizeSearchText(text);
+  if (/(dev|developer|lập trình|frontend|backend|data|ai|python|node|react|it|công nghệ)/i.test(value) || /\b(dev|developer|lap trinh|frontend|backend|data|ai|python|node|react|it|cong nghe)\b/i.test(plain)) return 'cong_nghe';
+  if (/(kế toán|kiểm toán|tài chính|ngân hàng|finance)/i.test(value) || /\b(ke toan|kiem toan|tai chinh|ngan hang|finance)\b/i.test(plain)) return 'tai_chinh';
+  if (/(marketing|sales|kinh doanh|e-commerce|thương mại)/i.test(value) || /\b(marketing|sales|kinh doanh|e commerce|thuong mai)\b/i.test(plain)) return 'kinh_doanh';
+  if (/(nhân sự|hr|tuyển dụng)/i.test(value) || /\b(nhan su|hr|tuyen dung)\b/i.test(plain)) return 'nhan_su';
+  if (/(thiết kế|design|ui|ux|figma|sáng tạo|creative)/i.test(value) || /\b(thiet ke|design|ui|ux|figma|sang tao|creative)\b/i.test(plain)) return 'thiet_ke';
+  if (/(logistics|chuỗi cung ứng|supply|vận hành|operation|ops|kho|vận tải)/i.test(value) || /\b(logistics|chuoi cung ung|supply|van hanh|operation|ops|kho|van tai)\b/i.test(plain)) return 'van_hanh_logistics';
+  if (/(giáo dục|teacher|giảng viên|đào tạo|training)/i.test(value) || /\b(giao duc|teacher|giang vien|dao tao|training)\b/i.test(plain)) return 'giao_duc';
+  if (/(y tế|bác sĩ|dược|điều dưỡng|health|medical)/i.test(value) || /\b(y te|bac si|duoc|dieu duong|health|medical)\b/i.test(plain)) return 'y_te';
+  if (/(pháp lý|luật|legal|compliance)/i.test(value) || /\b(phap ly|luat|legal|compliance)\b/i.test(plain)) return 'phap_ly';
+  if (/(sản xuất|manufacturing|qa|qc|bảo trì|cơ khí|điện)/i.test(value) || /\b(san xuat|manufacturing|qa|qc|bao tri|co khi|dien)\b/i.test(plain)) return 'san_xuat_ky_thuat';
   return 'chung';
 }
 
@@ -729,6 +761,104 @@ function buildChatContext(jobs, applications, companies, intent, category, mode 
     base.splice(4, 0, `Tổng đơn ứng tuyển: ${totalApps}`, `Đơn đã vào phỏng vấn/offer: ${interviewCount}`);
   }
   return base.join('\n');
+}
+
+function buildFallbackChatReply({ message, jobs, applications, companies, intent, category, mode }) {
+  const relevantJobs = rankJobsForQuestion(jobs, message, category).slice(0, 4);
+  const jobLines = relevantJobs.map((job) => `- ${job.title} tại ${job.company}, ${job.location}, lương ${job.salary || 'thỏa thuận'}, hạn ${job.deadline || 'chưa cập nhật'}`).join('\n');
+  const fallbackNote = 'Lưu ý: đây là phản hồi dự phòng khi chưa cấu hình GROQ_API_KEY hoặc API AI đang lỗi.';
+
+  if (mode === 'admin_cv_manage') {
+    const totalApps = applications.length;
+    const activeJobs = jobs.filter((job) => job.active !== false).length;
+    return [
+      fallbackNote,
+      '',
+      `Tổng quan CVMS hiện có ${activeJobs} vị trí đang tuyển, ${companies.length} doanh nghiệp và ${totalApps} đơn ứng tuyển.`,
+      jobLines ? `Các vị trí nên ưu tiên kiểm tra:\n${jobLines}` : 'Chưa có vị trí đang tuyển phù hợp để gợi ý.',
+      '',
+      'Checklist xử lý CV trong 3 ngày:',
+      '1. Đối chiếu CV với vị trí ứng tuyển, kỹ năng bắt buộc và địa điểm.',
+      '2. Chấm mức phù hợp theo 4 nhóm: kinh nghiệm, kỹ năng, lương mong muốn, rủi ro thiếu thông tin.',
+      '3. Ghi câu hỏi phỏng vấn ngắn cho các điểm chưa rõ.',
+      '4. Cập nhật trạng thái ứng viên trong pipeline.'
+    ].join('\n');
+  }
+
+  if (intent === 'hoi_luong') {
+    return [
+      fallbackNote,
+      '',
+      jobLines ? `Một số mức lương đang hiển thị trong CVMS:\n${jobLines}` : 'CVMS chưa có dữ liệu lương phù hợp với câu hỏi này.',
+      'Bạn nên so sánh thêm theo kinh nghiệm, địa điểm, yêu cầu kỹ năng và hình thức làm việc trước khi quyết định ứng tuyển.'
+    ].join('\n');
+  }
+
+  if (intent === 'hoi_kynang' || intent === 'hoi_phongvan') {
+    return [
+      fallbackNote,
+      '',
+      jobLines ? `Các vị trí liên quan trong CVMS:\n${jobLines}` : 'Chưa tìm thấy vị trí khớp rõ với ngành bạn hỏi.',
+      '',
+      'Gợi ý chuẩn bị:',
+      '1. Đọc kỹ kỹ năng trong mô tả việc làm.',
+      '2. Chuẩn bị ví dụ dự án hoặc kinh nghiệm thật cho từng kỹ năng.',
+      '3. Tập trả lời câu hỏi về điểm mạnh, điểm yếu, lý do ứng tuyển và mức lương mong muốn.',
+      '4. Cập nhật CV theo đúng vị trí trước khi nộp.'
+    ].join('\n');
+  }
+
+  if (intent === 'hoi_cv') {
+    return [
+      fallbackNote,
+      '',
+      'Checklist cải thiện CV:',
+      '1. Đưa vị trí mục tiêu lên phần đầu CV.',
+      '2. Viết kinh nghiệm theo kết quả đo được thay vì chỉ liệt kê nhiệm vụ.',
+      '3. Làm nổi bật kỹ năng khớp với tin tuyển dụng.',
+      '4. Giữ CV gọn, dễ đọc và kiểm tra lỗi chính tả.',
+      jobLines ? `Bạn có thể chỉnh CV theo các vị trí đang tuyển:\n${jobLines}` : ''
+    ].filter(Boolean).join('\n');
+  }
+
+  return [
+    fallbackNote,
+    '',
+    jobLines ? `Một số việc làm phù hợp trong CVMS:\n${jobLines}` : 'Hiện chưa tìm thấy vị trí khớp rõ với câu hỏi của bạn.',
+    'Bạn có thể hỏi cụ thể hơn về vị trí, địa điểm, mức lương, kỹ năng, CV hoặc phỏng vấn để chatbot lọc sát hơn.'
+  ].join('\n');
+}
+
+function rankJobsForQuestion(jobs, message, category) {
+  const query = normalizeSearchText(message);
+  const categoryWords = normalizeSearchText(category).split(/\s+/).filter(Boolean);
+  return jobs
+    .filter((job) => job.active !== false)
+    .map((job) => {
+      const haystack = normalizeSearchText([
+        job.title,
+        job.company,
+        job.location,
+        job.salary,
+        job.dept,
+        ...(Array.isArray(job.tags) ? job.tags : [])
+      ].join(' '));
+      const queryScore = query.split(/\s+/).filter((word) => word.length >= 3 && haystack.includes(word)).length;
+      const categoryScore = categoryWords.filter((word) => word.length >= 3 && haystack.includes(word)).length;
+      return { job, score: queryScore + categoryScore };
+    })
+    .sort((a, b) => b.score - a.score || Number(b.job.salaryNum || 0) - Number(a.job.salaryNum || 0))
+    .map((item) => item.job);
+}
+
+function normalizeSearchText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
 async function assessApplicationsBatch(res, body = {}) {
