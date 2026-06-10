@@ -16,7 +16,7 @@ Dự án đã có giao diện web, mobile app bằng Capacitor, backend API bằ
 - Hồ sơ ứng viên và upload/lưu CV vào database.
 - Thông báo nội bộ cho admin và ứng viên.
 - Phân tích CV bằng Claude API khi cấu hình `ANTHROPIC_API_KEY`.
-- Chatbot AI tư vấn việc làm, CV, kỹ năng và phỏng vấn bằng Groq API.
+- Chatbot AI tư vấn việc làm, CV, kỹ năng và phỏng vấn bằng Groq API, có phản hồi dự phòng khi chưa cấu hình key hoặc API lỗi.
 
 ## Tài khoản mặc định
 
@@ -68,7 +68,7 @@ FACEBOOK_CLIENT_SECRET=
 
 `ANTHROPIC_API_KEY` chỉ cần điền nếu muốn dùng tính năng AI phân tích CV.
 
-`GROQ_API_KEY` dùng cho chatbot AI. Key chỉ cấu hình ở backend qua `.env` hoặc hằng `CODE_KEYS` trong `scripts/serve.mjs`; giao diện không hiển thị ô nhập API key.
+`GROQ_API_KEY` dùng cho chatbot AI. Key chỉ cấu hình ở backend qua `.env` hoặc hằng `CODE_KEYS` trong `scripts/serve.mjs`; giao diện không hiển thị ô nhập API key. Nếu chưa cấu hình key hoặc Groq API lỗi, chatbot vẫn trả lời bằng chế độ dự phòng dựa trên dữ liệu tuyển dụng CVMS.
 
 Google/GitHub/Facebook OAuth dùng cho đăng ký/đăng nhập nhanh. Callback URL khi chạy local:
 
@@ -230,6 +230,8 @@ Cần Android Studio và JDK 17 hoặc mới hơn để build APK.
 │   ├── migrate-sqlite-to-supabase.mjs
 │   ├── serve.mjs
 │   └── prepare-mobile.mjs
+├── docs/
+│   └── ISSUE_9_CHATBOT_QA.md
 ├── supabase/
 │   └── schema.sql
 ├── capacitor.config.ts
@@ -242,6 +244,7 @@ Cần Android Studio và JDK 17 hoặc mới hơn để build APK.
 - Mật khẩu tài khoản mới được băm bằng PBKDF2 trước khi lưu database.
 - Backend tự chọn Supabase khi có `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY`.
 - Widget chatbot AI đã được gắn vào các trang web chính, admin và user.
+- Tài liệu phạm vi 3 ngày và QA cho chatbot nằm tại `docs/ISSUE_9_CHATBOT_QA.md`.
 - `www/` là thư mục build cho mobile và không commit lên Git.
 - Một số icon/chart dùng CDN, thiết bị cần internet để hiển thị đầy đủ.
 
