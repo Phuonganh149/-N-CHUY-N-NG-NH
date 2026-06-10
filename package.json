@@ -1,0 +1,24 @@
+{
+  "name": "cvms-recruitment-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ứng dụng quản lý tuyển dụng, CV và quy trình xét duyệt ứng viên cho doanh nghiệp.",
+  "scripts": {
+    "dev": "node --experimental-sqlite scripts/serve.mjs",
+    "db:migrate:supabase": "node --experimental-sqlite scripts/migrate-sqlite-to-supabase.mjs",
+    "mobile:prepare": "node scripts/prepare-mobile.mjs",
+    "mobile:sync": "npm run mobile:prepare && cap sync",
+    "mobile:android": "cap open android",
+    "mobile:ios": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.4"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/ios": "^8.3.4",
+    "typescript": "^6.0.3"
+  }
+}
