@@ -16,7 +16,8 @@ Dự án đã có giao diện web, mobile app bằng Capacitor, backend API bằ
 - Hồ sơ ứng viên và upload/lưu CV vào database.
 - Thông báo nội bộ cho admin và ứng viên.
 - Phân tích CV bằng Claude API khi cấu hình `ANTHROPIC_API_KEY`.
-- Chatbot AI tư vấn việc làm, CV, kỹ năng và phỏng vấn bằng Groq API, có phản hồi dự phòng khi chưa cấu hình key hoặc API lỗi.
+- Chatbot AI theo ngữ cảnh ứng viên/admin: ứng viên được tư vấn nghề nghiệp đa ngành, admin/HR được hỗ trợ quản lý và chấm CV.
+- Chatbot có gợi ý câu hỏi nhanh, lưu/xóa lịch sử phiên, nhận diện tiếng Việt có dấu/không dấu và có phản hồi dự phòng khi chưa cấu hình key hoặc API lỗi.
 
 ## Tài khoản mặc định
 
@@ -169,6 +170,7 @@ GET    /api/applications
 POST   /api/applications
 PATCH  /api/applications/:id/status
 PATCH  /api/applications/:id/pipeline
+POST   /api/applications/ai-assess-batch
 GET    /api/notifications
 POST   /api/notifications/read
 POST   /api/auth/register
@@ -231,7 +233,8 @@ Cần Android Studio và JDK 17 hoặc mới hơn để build APK.
 │   ├── serve.mjs
 │   └── prepare-mobile.mjs
 ├── docs/
-│   └── ISSUE_9_CHATBOT_QA.md
+│   ├── ISSUE_9_CHATBOT_QA.md
+│   └── ISSUE_11_CHATBOT_QA.md
 ├── supabase/
 │   └── schema.sql
 ├── capacitor.config.ts
@@ -245,6 +248,7 @@ Cần Android Studio và JDK 17 hoặc mới hơn để build APK.
 - Backend tự chọn Supabase khi có `SUPABASE_URL` và `SUPABASE_SERVICE_ROLE_KEY`.
 - Widget chatbot AI đã được gắn vào các trang web chính, admin và user.
 - Tài liệu phạm vi 3 ngày và QA cho chatbot nằm tại `docs/ISSUE_9_CHATBOT_QA.md`.
+- Tài liệu hoàn thiện chatbot AI theo issue #11 nằm tại `docs/ISSUE_11_CHATBOT_QA.md`.
 - `www/` là thư mục build cho mobile và không commit lên Git.
 - Một số icon/chart dùng CDN, thiết bị cần internet để hiển thị đầy đủ.
 
