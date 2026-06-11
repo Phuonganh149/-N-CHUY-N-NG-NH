@@ -22,8 +22,8 @@
       cvHint: 'Nhập vị trí tuyển dụng hoặc tiêu chí bắt buộc để AI chấm mức phù hợp CV.',
       quickPrompts: [
         'Tóm tắt các vị trí đang tuyển',
-        'Gợi ý câu hỏi phỏng vấn cho Frontend Developer',
-        'Checklist chấm CV trong hệ thống CVMS',
+        'Lọc CV phù hợp cho vị trí kế toán hoặc marketing',
+        'Checklist chấm CV và câu hỏi phỏng vấn',
       ],
     }
     : {
@@ -38,8 +38,8 @@
       cvHint: 'Tính năng này đọc CV để gợi ý chỉnh sửa nội dung, bố cục và mức độ phù hợp với ngành ứng tuyển.',
       quickPrompts: [
         'Có việc nào đang tuyển ở Hà Nội?',
-        'Mức lương Frontend Developer khoảng bao nhiêu?',
-        'Tôi cần học kỹ năng gì để phỏng vấn tốt?',
+        'Mức lương kế toán hoặc marketing khoảng bao nhiêu?',
+        'Tôi cần học kỹ năng gì để chuyển ngành?',
       ],
     };
   const historyKey = `cvms_ai_history_${roleConfig.mode}`;
