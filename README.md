@@ -249,6 +249,7 @@ Cần Android Studio và JDK 17 hoặc mới hơn để build APK.
 - Widget chatbot AI đã được gắn vào các trang web chính, admin và user.
 - Tài liệu phạm vi 3 ngày và QA cho chatbot nằm tại `docs/ISSUE_9_CHATBOT_QA.md`.
 - Tài liệu hoàn thiện chatbot AI theo issue #11 nằm tại `docs/ISSUE_11_CHATBOT_QA.md`.
+- Evidence ảnh giao diện và kết quả test issue #11 nằm tại `docs/evidence/ISSUE_11_EVIDENCE.md`.
 - `www/` là thư mục build cho mobile và không commit lên Git.
 - Một số icon/chart dùng CDN, thiết bị cần internet để hiển thị đầy đủ.
 

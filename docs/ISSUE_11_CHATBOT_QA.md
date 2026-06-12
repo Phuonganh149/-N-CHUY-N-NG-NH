@@ -2,6 +2,8 @@
 
 Issue: https://github.com/hieunofun/cong-nghe-phan-mem/issues/11
 
+Evidence screenshots and API test results: `docs/evidence/ISSUE_11_EVIDENCE.md`
+
 ## Muc tieu
 
 Hoan thien chatbot AI trong CVMS de phuc vu dung 2 nhom nguoi dung:
