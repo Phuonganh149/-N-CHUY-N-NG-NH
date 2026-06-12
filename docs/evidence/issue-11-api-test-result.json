@@ -1,0 +1,18 @@
+﻿{
+    "testedAt":  "2026-06-12T10:15:13",
+    "server":  "http://localhost:4301",
+    "userCareer":  {
+                       "category":  "tai_chinh",
+                       "warning":  "Groq API đang lỗi (Invalid API Key). Chatbot đã dùng phản hồi dự phòng.",
+                       "fallback":  true,
+                       "mode":  "user_career",
+                       "intent":  "hoi_luong"
+                   },
+    "adminCvManage":  {
+                          "category":  "chung",
+                          "warning":  "Groq API đang lỗi (Invalid API Key). Chatbot đã dùng phản hồi dự phòng.",
+                          "fallback":  true,
+                          "mode":  "admin_cv_manage",
+                          "intent":  "hoi_cv"
+                      }
+}
