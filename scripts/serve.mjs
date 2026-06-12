@@ -272,6 +272,19 @@ async function handleApi(req, res) {
   }
 
   if (method === 'POST' && path === '/api/company-bookings') {
+    // Server-side validation các trường bắt buộc
+    const missingFields = [];
+    if (!String(body.companyName || '').trim()) missingFields.push('tên doanh nghiệp');
+    if (!String(body.contactName || '').trim()) missingFields.push('người liên hệ');
+    if (!String(body.email || '').trim()) missingFields.push('email');
+    if (!String(body.phone || '').trim()) missingFields.push('số điện thoại');
+    if (missingFields.length > 0) {
+      return sendJson(res, 400, { ok: false, msg: `Vui lòng điền đủ: ${missingFields.join(', ')}.` });
+    }
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(body.email || '').trim())) {
+      return sendJson(res, 400, { ok: false, msg: 'Địa chỉ email không hợp lệ.' });
+    }
     const booking = await store.addBookingRequest({
       ...body,
       submittedBy: authUser?.email || body.submittedBy || '',
