@@ -435,3 +435,45 @@ body {
     width: 100%;
   }
 }
+
+/* ── Bổ sung: Required indicator ─── */
+em.required {
+  color: #e53e3e;
+  font-style: normal;
+  margin-left: 2px;
+}
+
+/* ── Bổ sung: Bước đã hoàn thành ─── */
+.step-item.done {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.step-item.done span {
+  background: #16a34a;
+  color: #fff;
+}
+
+/* ── Bổ sung: Spinner cho loading state ─── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin {
+  display: inline-block;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Bổ sung: result-note trong payment panel ─── */
+#paymentResult {
+  margin-top: 10px;
+}
+
+/* ── Bổ sung: Focus visible trên input ─── */
+.form-grid input:focus,
+.form-grid select:focus,
+.form-grid textarea:focus {
+  outline: 2px solid #475ee2;
+  outline-offset: 1px;
+  border-color: #475ee2;
+}
