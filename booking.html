@@ -31,28 +31,29 @@
     </nav>
 
     <main class="booking-layout">
+      <!-- BƯỚC 1: Form thông tin yêu cầu -->
       <section class="booking-panel" id="bookingStepForm">
         <div class="section-head">
           <h1>Đặt gói đăng bài với admin</h1>
           <p>Doanh nghiệp gửi thông tin trước. Sau khi yêu cầu được ghi nhận, hệ thống mới mở bước thanh toán bằng QR.</p>
         </div>
 
-        <form id="bookingForm" class="booking-form">
+        <form id="bookingForm" class="booking-form" novalidate>
           <div class="form-grid">
             <label>
-              <span>Tên doanh nghiệp</span>
+              <span>Tên doanh nghiệp <em class="required">*</em></span>
               <input id="companyName" required placeholder="VD: Nova Retail">
             </label>
             <label>
-              <span>Người liên hệ</span>
+              <span>Người liên hệ <em class="required">*</em></span>
               <input id="contactName" required placeholder="VD: Nguyễn An">
             </label>
             <label>
-              <span>Email</span>
+              <span>Email <em class="required">*</em></span>
               <input id="email" type="email" required placeholder="email@company.com">
             </label>
             <label>
-              <span>Số điện thoại</span>
+              <span>Số điện thoại <em class="required">*</em></span>
               <input id="phone" required placeholder="09xxxxxxxx">
             </label>
             <label class="span-2">
@@ -60,15 +61,15 @@
               <input id="industry" placeholder="VD: Bán lẻ, Tài chính, Logistics...">
             </label>
             <label>
-              <span>Gói đăng bài</span>
+              <span>Gói đăng bài <em class="required">*</em></span>
               <select id="packageKey" required>
-                <option value="basic">Basic - 1 tin / 1.500.000đ</option>
-                <option value="standard">Standard - 3 tin / 3.500.000đ</option>
-                <option value="priority">Priority - 5 tin / 5.900.000đ</option>
+                <option value="basic">Basic — 1 tin / 1.500.000đ</option>
+                <option value="standard">Standard — 3 tin / 3.500.000đ</option>
+                <option value="priority">Priority — 5 tin / 5.900.000đ</option>
               </select>
             </label>
             <label>
-              <span>Số tin</span>
+              <span>Số tin <em class="required">*</em></span>
               <input id="quantity" type="number" min="1" value="1" required>
             </label>
             <label>
@@ -94,42 +95,60 @@
               <div class="summary-label">Tổng tạm tính</div>
               <div class="summary-value" id="totalAmount">1.500.000đ</div>
             </div>
-            <button class="submit-btn" type="submit"><i class="ti ti-device-floppy"></i> Gửi yêu cầu booking</button>
+            <button class="submit-btn" type="submit">
+              <i class="ti ti-device-floppy"></i> Gửi yêu cầu booking
+            </button>
           </div>
 
           <div class="result-note" id="bookingResult" aria-live="polite"></div>
         </form>
       </section>
 
+      <!-- BƯỚC 2: Thanh toán — chỉ hiển thị sau khi form đã submit thành công -->
       <aside class="payment-panel" id="bookingStepPayment" aria-live="polite">
         <div class="payment-card">
           <div class="section-head">
             <h2>Thông tin thanh toán</h2>
-            <p>Yêu cầu đã được gửi. Hãy chuyển khoản đúng số tiền và nội dung bên dưới để admin kiểm tra nhanh hơn.</p>
+            <p>Yêu cầu đã được ghi nhận. Chuyển khoản đúng số tiền và nội dung bên dưới để admin kiểm tra nhanh hơn.</p>
           </div>
 
           <div class="payment-info">
-            <div><span>Mã yêu cầu</span><strong id="bookingCode">Chưa gửi</strong></div>
+            <div><span>Mã yêu cầu</span><strong id="bookingCode">—</strong></div>
             <div><span>Chủ tài khoản</span><strong id="accountName">CVMS Admin</strong></div>
             <div><span>Ngân hàng</span><strong id="bankName">MB Bank</strong></div>
             <div><span>Số tài khoản</span><strong id="accountNumber">0987654321</strong></div>
-            <div><span>Số tiền</span><strong id="paymentAmount">1.500.000đ</strong></div>
-            <div><span>Nội dung CK</span><strong id="transferNote">CVMS BOOKING</strong></div>
+            <div><span>Số tiền</span><strong id="paymentAmount">—</strong></div>
+            <div><span>Nội dung chuyển khoản</span><strong id="transferNote">—</strong></div>
           </div>
 
           <div class="qr-wrap">
             <img id="bookingQr" alt="QR thanh toán" />
           </div>
 
-          <button class="copy-btn" id="copyPayment" type="button"><i class="ti ti-copy"></i> Sao chép thông tin thanh toán</button>
+          <button class="copy-btn" id="copyPayment" type="button">
+            <i class="ti ti-copy"></i> Sao chép thông tin thanh toán
+          </button>
+
           <div class="payment-status pending" id="paymentStatus">Đang chờ doanh nghiệp chuyển khoản.</div>
+
           <label class="confirm-transfer">
             <input id="transferDone" type="checkbox">
             <span>Tôi đã chuyển khoản xong theo QR và nội dung trên</span>
           </label>
-          <button class="confirm-btn" id="confirmPayment" type="button" disabled><i class="ti ti-check"></i> Xác nhận đã chuyển khoản</button>
-          <button class="secondary-btn" id="newBooking" type="button"><i class="ti ti-plus"></i> Tạo yêu cầu khác</button>
-          <div class="payment-hint">Sau khi bạn xác nhận, trạng thái sẽ chuyển sang chờ admin kiểm tra giao dịch.</div>
+
+          <button class="confirm-btn" id="confirmPayment" type="button" disabled>
+            <i class="ti ti-check"></i> Xác nhận đã chuyển khoản
+          </button>
+
+          <button class="secondary-btn" id="newBooking" type="button">
+            <i class="ti ti-plus"></i> Tạo yêu cầu khác
+          </button>
+
+          <div class="payment-hint">
+            Sau khi bạn xác nhận, trạng thái sẽ chuyển sang <strong>chờ admin kiểm tra giao dịch</strong>. Admin sẽ liên hệ lại qua email đã đăng ký.
+          </div>
+
+          <div class="result-note" id="paymentResult" aria-live="polite"></div>
         </div>
       </aside>
     </main>
