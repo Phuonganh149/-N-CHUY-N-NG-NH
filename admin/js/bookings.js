@@ -137,29 +137,45 @@ function refreshBookings() {
     renderStats();
     filterBookings();
   } catch (error) {
-    showAdminToast(error.message, 'error');
+    const msg = String(error.message || '');
+    if (msg.includes('401') || msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('đăng nhập')) {
+      showAdminToast('Phiên đăng nhập hết hạn. Đang chuyển về trang đăng nhập...', 'error');
+      setTimeout(() => { window.location.href = '../../login.html'; }, 1800);
+    } else {
+      showAdminToast(msg || 'Không tải được danh sách yêu cầu.', 'error');
+    }
+    renderBookings([]);
   }
 }
 
 function confirmBooking(id) {
+  const btn = document.querySelector(`button[onclick="confirmBooking(${Number(id)})"]`);
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i> Đang xử lý...'; }
   try {
-    CVMS.adminConfirmCompanyBooking(id);
+    const booking = CVMS.adminConfirmCompanyBooking(id);
+    // Cập nhật cache local trước khi refresh để UI nhanh hơn
+    const idx = bookingsCache.findIndex(b => Number(b.id) === Number(id));
+    if (idx !== -1 && booking) bookingsCache[idx] = booking;
     showAdminToast('Đã xác nhận thanh toán và kích hoạt doanh nghiệp.');
     refreshBookings();
   } catch (error) {
     showAdminToast(error.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> Xác nhận CK'; }
   }
 }
 
 function rejectBooking(id) {
   const reason = prompt('Lý do từ chối/tạm dừng yêu cầu này:', 'Thông tin chuyển khoản chưa khớp hoặc cần bổ sung hồ sơ.');
-  if (reason === null) return;
+  if (reason === null) return; // User nhấn Cancel
+  const btn = document.querySelector(`button[onclick="rejectBooking(${Number(id)})"]`);
+  if (btn) { btn.disabled = true; }
   try {
     CVMS.rejectCompanyBooking(id, reason);
     showAdminToast('Đã cập nhật trạng thái từ chối.');
     refreshBookings();
   } catch (error) {
     showAdminToast(error.message, 'error');
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -281,18 +297,39 @@ function showAdminToast(msg, type = 'success') {
   if (!t) {
     t = document.createElement('div');
     t.id = 'admin-toast';
-    t.className = 'admin-toast';
+    // Inject inline style lần đầu để không phụ thuộc CSS riêng
+    t.style.cssText = `
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      padding: 12px 18px; border-radius: 10px; font-size: 13px;
+      font-weight: 600; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+      transition: opacity 0.3s; pointer-events: none;
+    `;
     document.body.appendChild(t);
   }
   t.textContent = msg;
-  t.className = `admin-toast ${type === 'error' ? 'error' : ''}`;
+  if (type === 'error') {
+    t.style.background = '#fef2f2';
+    t.style.color = '#b91c1c';
+    t.style.border = '1px solid #fecaca';
+  } else {
+    t.style.background = '#f0fdf4';
+    t.style.color = '#166534';
+    t.style.border = '1px solid #bbf7d0';
+  }
   t.style.opacity = '1';
-  setTimeout(() => t.style.opacity = '0', 2800);
+  clearTimeout(t._hideTimer);
+  t._hideTimer = setTimeout(() => { t.style.opacity = '0'; }, 3200);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   refreshBookings();
   ['bookingSearch', 'topBookingSearch'].forEach(id => document.getElementById(id)?.addEventListener('input', filterBookings));
   ['bookingStatusFilter', 'bookingPaymentFilter'].forEach(id => document.getElementById(id)?.addEventListener('change', filterBookings));
+  document.getElementById('refreshBtn')?.addEventListener('click', () => {
+    const btn = document.getElementById('refreshBtn');
+    if (btn) btn.querySelector('i')?.classList.add('spin-once');
+    refreshBookings();
+    setTimeout(() => btn?.querySelector('i')?.classList.remove('spin-once'), 600);
+  });
   if (typeof initNotifUI === 'function') initNotifUI('admin');
 });
