@@ -9,10 +9,19 @@
     if (loginBtn)    loginBtn.addEventListener('click',    () => container.classList.remove('active'));
 
     if (roleSelect && nameInput) {
+        const userConsentLabel = document.querySelector('.consent-box label[data-role="user"]');
+        const companyConsentLabel = document.querySelector('.consent-box label[data-role="company"]');
+        const candidateBox = document.getElementById('consent-candidate');
+        const companyBox = document.getElementById('consent-company');
         const syncSignupMode = () => {
-            nameInput.placeholder = roleSelect.value === 'company'
+            const isCompany = roleSelect.value === 'company';
+            nameInput.placeholder = isCompany
                 ? 'Tên doanh nghiệp / Người liên hệ'
                 : 'Họ và tên';
+            if (userConsentLabel) userConsentLabel.style.display = isCompany ? 'none' : 'flex';
+            if (companyConsentLabel) companyConsentLabel.style.display = isCompany ? 'flex' : 'none';
+            if (candidateBox) candidateBox.required = !isCompany;
+            if (companyBox) companyBox.required = isCompany;
         };
         roleSelect.addEventListener('change', syncSignupMode);
         syncSignupMode();

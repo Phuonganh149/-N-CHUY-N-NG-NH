@@ -37,7 +37,24 @@
             </select>
             <input type="text"     id="reg-name"     placeholder="Họ và tên" required>
             <input type="email"    id="reg-email"    placeholder="Email" required>
-            <input type="password" id="reg-password" placeholder="Mật khẩu (ít nhất 6 ký tự)" required>
+            <input type="password" id="reg-password" placeholder="Mật khẩu (tối thiểu 8 ký tự)" required>
+            <div class="consent-box" id="consentBox">
+                <label><input type="checkbox" id="consent-terms" required>
+                    Tôi đồng ý <a href="./terms.html" target="_blank">Điều khoản sử dụng</a>
+                </label>
+                <label><input type="checkbox" id="consent-privacy" required>
+                    Tôi đồng ý <a href="./privacy.html" target="_blank">Chính sách bảo mật</a>
+                </label>
+                <label data-role="user"><input type="checkbox" id="consent-candidate">
+                    Tôi đồng ý cho CVMS xử lý và chia sẻ <a href="./candidate-consent.html" target="_blank">CV ứng viên</a> cho doanh nghiệp tuyển dụng
+                </label>
+                <label data-role="company" style="display:none"><input type="checkbox" id="consent-company">
+                    Tôi đồng ý <a href="./company-policy.html" target="_blank">Chính sách doanh nghiệp</a>
+                </label>
+                <label><input type="checkbox" id="consent-marketing">
+                    Tôi muốn nhận thông tin marketing (không bắt buộc)
+                </label>
+            </div>
             <button type="submit">Đăng Ký</button>
             <a class="booking-link" href="./booking.html">Doanh nghiệp cần book admin đăng bài? Mở trang booking</a>
         </form>
@@ -80,7 +97,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./jss/supabase-auth.js"></script>
-<script src="./jss/login.js?v=20260614-supabase-auth"></script>
+<script src="./jss/login.js?v=20260614-consent-fix"></script>
 <script src="/jss/ai-chatbot-widget.js"></script>
 </body>
 </html>
