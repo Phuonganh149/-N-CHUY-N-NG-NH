@@ -520,7 +520,8 @@ async function handleApi(req, res) {
   }
 
   if (method === 'POST' && path === '/api/auth/register') {
-    return sendJson(res, 410, { ok: false, msg: 'Frontend ph?i ??ng k? tr?c ti?p b?ng Supabase Auth signUp().' });
+    const result = await store.register({ ...body, ip: getClientIp(req), userAgent: req.headers['user-agent'] || '' });
+    return sendJson(res, result?.ok ? 200 : 400, result);
   }
   if (method === 'POST' && path === '/api/auth/login') {
     const auth = await verifySupabaseToken(getBearerToken(req));
