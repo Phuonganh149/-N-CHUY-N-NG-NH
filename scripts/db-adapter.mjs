@@ -512,8 +512,41 @@ function createSupabaseStore(supabaseUrl, supabaseKey, defaultJobs, defaultCompa
     return normalizeApplication(app);
   }
 
-  async function register() {
-    return { ok: false, msg: '??ng k? c?ng khai ph?i d?ng Supabase Auth t? frontend (signUp). Backend ch? t?o profile sau khi user x?c nh?n email v? ??ng nh?p l?n ??u.' };
+  async function register({ name, email, password, role = 'user', consents = {}, ip = '', userAgent = '' }) {
+    if (!name || !email || !password) return { ok: false, msg: 'Vui l?ng nh?p ?? h? t?n, email v? m?t kh?u.' };
+    const cleanEmail = String(email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return { ok: false, msg: 'Email kh?ng h?p l?.' };
+    if (String(password).length < 8) return { ok: false, msg: 'M?t kh?u ph?i t?i thi?u 8 k? t?.' };
+    const rawRole = String(role || 'user').toLowerCase();
+    if (!['user', 'company'].includes(rawRole)) return { ok: false, msg: 'Vai tr? kh?ng h?p l?.' };
+    const normalizedRole = rawRole;
+    const consentError = validateRegistrationConsents(normalizedRole, consents);
+    if (consentError) return { ok: false, msg: consentError };
+    const exists = await selectOne('users', `?select=*&email=eq.${encodeFilter(cleanEmail)}`);
+    if (exists?.auth_user_id) return { ok: false, msg: 'Email n?y ?? c? t?i kho?n. Vui l?ng ??ng nh?p.' };
+    let authUser;
+    try {
+      authUser = await adminCreateAuthUser({ email: cleanEmail, password, name });
+    } catch (error) {
+      const msg = String(error?.message || '').toLowerCase();
+      if (error?.status === 422 || msg.includes('already') || msg.includes('exists') || msg.includes('registered')) {
+        return { ok: false, msg: 'Email n?y ?? ???c ??ng k?. Vui l?ng ??ng nh?p.' };
+      }
+      return { ok: false, msg: error?.message || 'Kh?ng t?o ???c t?i kho?n Supabase Auth.' };
+    }
+    const authUserId = authUser?.id || authUser?.user?.id;
+    if (!authUserId) return { ok: false, msg: 'Supabase Auth kh?ng tr? v? user id.' };
+    if (exists) {
+      await request('users', `?email=eq.${encodeFilter(cleanEmail)}`, { method: 'PATCH', body: { auth_user_id: authUserId, name: exists.name || name, role: exists.role || normalizedRole } });
+    } else {
+      await request('users', '', {
+        method: 'POST',
+        body: { email: cleanEmail, name, auth_user_id: authUserId, role: normalizedRole, status: normalizedRole === 'company' ? 'pending' : 'active', companyRole: normalizedRole === 'company' ? '??i t?c doanh nghi?p' : '' },
+      });
+    }
+    try { await saveUserConsents(cleanEmail, normalizedRole, consents, ip, userAgent); } catch {}
+    const user = await getUserByAuthId(authUserId);
+    return { ok: true, user };
   }
 
   async function loginFromAuth({ authPayload = {}, ip = '', userAgent = '' }) {

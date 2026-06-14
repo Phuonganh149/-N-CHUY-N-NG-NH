@@ -65,6 +65,22 @@ function validateRegistrationConsents(role, consents) {
     return '';
 }
 
+async function completeLoginAfterRegister(email, password) {
+    const authResult = await CVMSAuth.signIn(email, password);
+    if (authResult.error) throw authResult.error;
+    const accessToken = authResult.data.session?.access_token;
+    if (!accessToken) throw new Error('Không lấy được phiên đăng nhập.');
+    const result = apiPost('/api/auth/login', {}, accessToken);
+    if (!result.ok) throw new Error(result.msg || 'Đăng nhập thất bại sau khi đăng ký.');
+    localStorage.setItem('cvms_user', JSON.stringify(result.user));
+    localStorage.setItem('cvms_token', accessToken);
+    if (authResult.data.user?.id) localStorage.setItem('cvms_auth_user_id', authResult.data.user.id);
+    const dest = result.user.role === 'admin' ? './admin/pages/dashboard.html'
+               : result.user.role === 'company' ? './company/pages/dashboard.html'
+               : './user/pages/dashboard.html';
+    setTimeout(() => { window.location.href = dest; }, 700);
+}
+
 async function handleSignUp(e) {
     e.preventDefault();
 
@@ -87,13 +103,10 @@ async function handleSignUp(e) {
         showToast('Mật khẩu phải tối thiểu 8 ký tự.', 'error');
         return;
     }
-    if (!['user', 'company'].includes(role)) {
-        showToast('Vai trò không hợp lệ.', 'error');
-        return;
-    }
     const consentError = validateRegistrationConsents(role, consents);
     if (consentError) { showToast(consentError, 'error'); return; }
 
+    // 1) Try standard Supabase signUp first (production-like flow)
     try {
         const result = await CVMSAuth.signUp(email, password, {
             data: {
@@ -102,25 +115,18 @@ async function handleSignUp(e) {
                 consents,
             },
         });
-        if (result.error) {
-            const msg = String(result.error.message || '').toLowerCase();
-            if (msg.includes('registered') || msg.includes('already') || msg.includes('exists')) {
-                showToast('Email này đã được đăng ký. Vui lòng đăng nhập.', 'error');
-            } else {
-                showToast(result.error.message || 'Không đăng ký được.', 'error');
-            }
-            return;
-        }
+
+        if (result.error) throw result.error;
+
         const session = result.data?.session;
         if (session?.access_token) {
-            // Email confirmation disabled on project — finalize profile and go to dashboard.
+            showToast('Đăng ký thành công! Đang chuyển vào hệ thống...');
             try {
                 const loginResult = apiPost('/api/auth/login', {}, session.access_token);
                 if (!loginResult.ok) throw new Error(loginResult.msg || 'Đăng nhập thất bại sau khi đăng ký.');
                 localStorage.setItem('cvms_user', JSON.stringify(loginResult.user));
                 localStorage.setItem('cvms_token', session.access_token);
                 if (result.data.user?.id) localStorage.setItem('cvms_auth_user_id', result.data.user.id);
-                showToast('Đăng ký thành công! Đang chuyển vào hệ thống...');
                 const dest = loginResult.user.role === 'admin' ? './admin/pages/dashboard.html'
                            : loginResult.user.role === 'company' ? './company/pages/dashboard.html'
                            : './user/pages/dashboard.html';
@@ -128,14 +134,39 @@ async function handleSignUp(e) {
             } catch (err) {
                 showToast(err.message || 'Không hoàn tất đăng nhập sau đăng ký.', 'error');
             }
-        } else {
-            showToast('Đăng ký thành công. Vui lòng kiểm tra email để xác nhận tài khoản trước khi đăng nhập.', 'success', 5500);
-            setTimeout(() => {
-                document.getElementById('container').classList.remove('active');
-                const loginEmail = document.getElementById('login-email');
-                if (loginEmail) loginEmail.value = email;
-            }, 900);
+            return;
         }
+
+        // No session => email confirmation enabled and signup accepted.
+        showToast('Đăng ký thành công. Vui lòng kiểm tra email để xác nhận tài khoản trước khi đăng nhập.', 'success', 5500);
+        setTimeout(() => {
+            document.getElementById('container').classList.remove('active');
+            const loginEmail = document.getElementById('login-email');
+            if (loginEmail) loginEmail.value = email;
+        }, 900);
+        return;
+    } catch (error) {
+        const msg = String(error.message || '').toLowerCase();
+        const shouldFallback = msg.includes('over_email_send_rate_limit') || msg.includes('email rate limit exceeded') || msg.includes('email provider') || msg.includes('smtp');
+        if (!shouldFallback) {
+            if (msg.includes('registered') || msg.includes('already') || msg.includes('exists')) {
+                showToast('Email này đã được đăng ký. Vui lòng đăng nhập.', 'error');
+            } else {
+                showToast(error.message || 'Không đăng ký được.', 'error');
+            }
+            return;
+        }
+    }
+
+    // 2) Fallback for dev/demo when Supabase email quota is exhausted
+    try {
+        const result = apiPost('/api/auth/register', { name, email, password, role, consents });
+        if (!result.ok) {
+            showToast(result.msg || 'Không đăng ký được.', 'error');
+            return;
+        }
+        showToast('Đăng ký thành công! Đang đăng nhập...', 'success', 3200);
+        await completeLoginAfterRegister(email, password);
     } catch (error) {
         showToast(error.message || 'Không đăng ký được.', 'error');
     }
