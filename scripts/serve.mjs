@@ -125,7 +125,8 @@ function checkRateLimit(req, res) {
   const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'local').toString().split(',')[0].trim();
   const now = Date.now();
   const windowMs = 60_000;
-  const max = (req.url || '').includes('/api/auth/login') ? 12 : 90;
+  const isAuthRoute = (req.url || '').includes('/api/auth/login') || (req.url || '').includes('/api/auth/register');
+  const max = isAuthRoute ? 10 : 90;
   const key = `${ip}:${(req.url || '').split('?')[0]}:${method}`;
   const bucket = rateBuckets.get(key) || { count: 0, resetAt: now + windowMs };
   if (now > bucket.resetAt) {
@@ -519,14 +520,16 @@ async function handleApi(req, res) {
   }
 
   if (method === 'POST' && path === '/api/auth/register') {
-    const auth = await verifySupabaseToken(getBearerToken(req));
-    if (!auth.ok) return sendJson(res, 401, { error: 'Token Supabase Auth kh?ng h?p l? ho?c h?t h?n.' });
-    return sendJson(res, 200, await store.register({ ...body, email: auth.user.email || body.email, authUserId: auth.user.id, ip: getClientIp(req), userAgent: req.headers['user-agent'] || '' }));
+    return sendJson(res, 410, { ok: false, msg: 'Frontend ph?i ??ng k? tr?c ti?p b?ng Supabase Auth signUp().' });
   }
   if (method === 'POST' && path === '/api/auth/login') {
     const auth = await verifySupabaseToken(getBearerToken(req));
-    if (!auth.ok) return sendJson(res, 401, { ok: false, msg: 'Token Supabase Auth kh?ng h?p l? ho?c h?t h?n.' });
-    return sendJson(res, 200, await store.login({ authUserId: auth.user.id, email: auth.user.email }));
+    if (!auth.ok) return sendJson(res, 401, { ok: false, code: 'invalid_token', msg: 'Token Supabase Auth kh?ng h?p l? ho?c ?? h?t h?n.' });
+    const result = typeof store.loginFromAuth === 'function'
+      ? await store.loginFromAuth({ authPayload: auth.user, ip: getClientIp(req), userAgent: req.headers['user-agent'] || '' })
+      : await store.login({ authUserId: auth.user.id, email: auth.user.email });
+    const status = result?.ok ? 200 : result?.code === 'email_not_confirmed' ? 403 : 401;
+    return sendJson(res, status, result);
   }
   const oauthStart = path.match(/^\/api\/auth\/oauth\/(google|github|facebook)\/start$/);
   if (method === 'GET' && oauthStart) return startOAuth(req, res, oauthStart[1]);

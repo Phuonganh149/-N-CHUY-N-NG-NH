@@ -16,8 +16,9 @@
       return client;
     },
     async currentSession(){ return (await this.client().auth.getSession()).data.session || null; },
-    async signUp(email,password){ return await this.client().auth.signUp({ email, password }); },
-    async signIn(email,password){ return await this.client().auth.signInWithPassword({ email, password }); },
-    async signOut(){ return await this.client().auth.signOut(); }
+    async signUp(email, password, options = {}){ return await this.client().auth.signUp({ email, password, options }); },
+    async signIn(email, password){ return await this.client().auth.signInWithPassword({ email, password }); },
+    async signOut(){ return await this.client().auth.signOut(); },
+    async resendConfirmation(email){ return await this.client().auth.resend({ type: 'signup', email }); }
   };
 })();

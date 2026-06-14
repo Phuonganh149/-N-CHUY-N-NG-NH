@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+﻿document.addEventListener('DOMContentLoaded', () => {
     const container   = document.getElementById('container');
     const registerBtn = document.getElementById('register');
     const loginBtn    = document.getElementById('login');
@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function showToast(msg, type = 'success', duration = 2500) {
     const toast = document.getElementById('toast');
     if (!toast) return;
@@ -29,7 +31,7 @@ function showToast(msg, type = 'success', duration = 2500) {
     setTimeout(() => toast.classList.remove('show'), duration);
 }
 
-function apiRequest(path, body, token = '') {
+function apiPost(path, body, token = '') {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', path, false);
     xhr.setRequestHeader('Content-Type', 'application/json');
@@ -37,8 +39,30 @@ function apiRequest(path, body, token = '') {
     xhr.send(JSON.stringify(body || {}));
     let data = {};
     try { data = JSON.parse(xhr.responseText || '{}'); } catch {}
-    if (xhr.status >= 400) throw new Error(data.error || data.msg || 'Lỗi máy chủ');
+    if (xhr.status >= 400) {
+        const err = new Error(data.error || data.msg || 'Lỗi máy chủ');
+        err.status = xhr.status;
+        err.code = data.code || '';
+        throw err;
+    }
     return data;
+}
+
+function collectRegistrationConsents() {
+    return {
+        terms: !!document.getElementById('consent-terms')?.checked,
+        privacy: !!document.getElementById('consent-privacy')?.checked,
+        candidateConsent: !!document.getElementById('consent-candidate')?.checked,
+        companyPolicy: !!document.getElementById('consent-company')?.checked,
+        marketing: !!document.getElementById('consent-marketing')?.checked,
+    };
+}
+
+function validateRegistrationConsents(role, consents) {
+    if (!consents.terms || !consents.privacy) return 'Bạn cần đồng ý Điều khoản và Chính sách bảo mật.';
+    if (role === 'user' && !consents.candidateConsent) return 'Ứng viên cần đồng ý xử lý và chia sẻ CV khi ứng tuyển.';
+    if (role === 'company' && !consents.companyPolicy) return 'Doanh nghiệp cần đồng ý Chính sách doanh nghiệp.';
+    return '';
 }
 
 async function handleSignUp(e) {
@@ -47,48 +71,73 @@ async function handleSignUp(e) {
     const name     = document.getElementById('reg-name').value.trim();
     const email    = document.getElementById('reg-email').value.trim().toLowerCase();
     const password = document.getElementById('reg-password').value;
-    const role     = document.getElementById('reg-role')?.value || 'user';
+    const roleRaw  = document.getElementById('reg-role')?.value || 'user';
+    const role     = roleRaw === 'company' ? 'company' : 'user';
+    const consents = collectRegistrationConsents();
 
     if (!name || !email || !password) {
         showToast('Vui lòng điền đầy đủ thông tin!', 'error');
         return;
     }
-    if (password.length < 6) {
-        showToast('Mật khẩu phải từ 6 ký tự!', 'error');
+    if (!EMAIL_PATTERN.test(email)) {
+        showToast('Email không hợp lệ.', 'error');
         return;
     }
-    if (email === 'admincv@gmail.com') {
-        showToast('Email này không được phép đăng ký!', 'error');
+    if (password.length < 8) {
+        showToast('Mật khẩu phải tối thiểu 8 ký tự.', 'error');
         return;
     }
+    if (!['user', 'company'].includes(role)) {
+        showToast('Vai trò không hợp lệ.', 'error');
+        return;
+    }
+    const consentError = validateRegistrationConsents(role, consents);
+    if (consentError) { showToast(consentError, 'error'); return; }
 
     try {
-        const authResult = await CVMSAuth.signUp(email, password);
-        if (authResult.error) throw authResult.error;
-        const accessToken = authResult.data.session?.access_token;
-        if (!accessToken) {
-            showToast('Supabase ?? t?o t?i kho?n. Vui l?ng x?c nh?n email r?i ??ng nh?p ?? ho?n t?t h? s?.', 'success', 4500);
+        const result = await CVMSAuth.signUp(email, password, {
+            data: {
+                name,
+                cvms_role: role,
+                consents,
+            },
+        });
+        if (result.error) {
+            const msg = String(result.error.message || '').toLowerCase();
+            if (msg.includes('registered') || msg.includes('already') || msg.includes('exists')) {
+                showToast('Email này đã được đăng ký. Vui lòng đăng nhập.', 'error');
+            } else {
+                showToast(result.error.message || 'Không đăng ký được.', 'error');
+            }
             return;
         }
-        const result = apiRequest('/api/auth/register', { name, email, role, consents }, accessToken);
-        if (!result.ok) {
-            showToast(result.msg || 'Kh?ng ??ng k? ???c.', 'error');
-            return;
+        const session = result.data?.session;
+        if (session?.access_token) {
+            // Email confirmation disabled on project — finalize profile and go to dashboard.
+            try {
+                const loginResult = apiPost('/api/auth/login', {}, session.access_token);
+                if (!loginResult.ok) throw new Error(loginResult.msg || 'Đăng nhập thất bại sau khi đăng ký.');
+                localStorage.setItem('cvms_user', JSON.stringify(loginResult.user));
+                localStorage.setItem('cvms_token', session.access_token);
+                if (result.data.user?.id) localStorage.setItem('cvms_auth_user_id', result.data.user.id);
+                showToast('Đăng ký thành công! Đang chuyển vào hệ thống...');
+                const dest = loginResult.user.role === 'admin' ? './admin/pages/dashboard.html'
+                           : loginResult.user.role === 'company' ? './company/pages/dashboard.html'
+                           : './user/pages/dashboard.html';
+                setTimeout(() => { window.location.href = dest; }, 700);
+            } catch (err) {
+                showToast(err.message || 'Không hoàn tất đăng nhập sau đăng ký.', 'error');
+            }
+        } else {
+            showToast('Đăng ký thành công. Vui lòng kiểm tra email để xác nhận tài khoản trước khi đăng nhập.', 'success', 5500);
+            setTimeout(() => {
+                document.getElementById('container').classList.remove('active');
+                const loginEmail = document.getElementById('login-email');
+                if (loginEmail) loginEmail.value = email;
+            }, 900);
         }
-        localStorage.setItem('cvms_user', JSON.stringify(result.user || {}));
-        localStorage.setItem('cvms_token', accessToken);
-        if (authResult.data.user?.id) localStorage.setItem('cvms_auth_user_id', authResult.data.user.id);
-        showToast(role === 'company'
-            ? '??ng k? doanh nghi?p th?nh c?ng! H?y ??ng nh?p ?? v?o dashboard doanh nghi?p.'
-            : '??ng k? th?nh c?ng! H?y ??ng nh?p.'
-        );
-        setTimeout(() => {
-            document.getElementById('container').classList.remove('active');
-            const loginEmail = document.getElementById('login-email');
-            if (loginEmail) loginEmail.value = email;
-        }, 900);
     } catch (error) {
-        showToast(error.message, 'error');
+        showToast(error.message || 'Không đăng ký được.', 'error');
     }
 }
 
@@ -105,45 +154,57 @@ async function handleSignIn(e) {
 
     try {
         const authResult = await CVMSAuth.signIn(email, password);
-        if (authResult.error) throw authResult.error;
-        const accessToken = authResult.data.session?.access_token;
-        if (!accessToken) throw new Error('Supabase Auth kh?ng tr? v? access token.');
-        const result = apiRequest('/api/auth/login', {}, accessToken);
-        if (!result.ok) {
-            showToast(result.msg || 'Email ho?c m?t kh?u kh?ng ??ng!', 'error');
+        if (authResult.error) {
+            const msg = String(authResult.error.message || '').toLowerCase();
+            if (msg.includes('confirm')) {
+                showToast('Tài khoản chưa xác nhận email. Vui lòng kiểm tra hộp thư.', 'error', 4500);
+            } else if (msg.includes('invalid')) {
+                showToast('Email hoặc mật khẩu không đúng.', 'error');
+            } else {
+                showToast(authResult.error.message, 'error');
+            }
             return;
         }
+        const accessToken = authResult.data.session?.access_token;
+        if (!accessToken) { showToast('Không lấy được phiên đăng nhập.', 'error'); return; }
+        let result;
+        try {
+            result = apiPost('/api/auth/login', {}, accessToken);
+        } catch (err) {
+            if (err.status === 401 && err.code === 'email_not_confirmed') {
+                showToast('Tài khoản chưa xác nhận email. Vui lòng kiểm tra hộp thư.', 'error', 4500);
+            } else if (err.status === 401) {
+                showToast('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.', 'error');
+            } else {
+                showToast(err.message || 'Đăng nhập thất bại.', 'error');
+            }
+            return;
+        }
+        if (!result.ok) { showToast(result.msg || 'Đăng nhập thất bại.', 'error'); return; }
 
         localStorage.setItem('cvms_user', JSON.stringify(result.user));
         localStorage.setItem('cvms_token', accessToken);
         if (authResult.data.user?.id) localStorage.setItem('cvms_auth_user_id', authResult.data.user.id);
-        showToast('??ng nh?p th?nh c?ng! Ch?o m?ng ' + result.user.name + '!');
+        showToast('Đăng nhập thành công! Chào mừng ' + result.user.name + '!');
 
-        if (result.user.role === 'admin') {
-            setTimeout(() => { window.location.href = './admin/pages/dashboard.html'; }, 700);
-        } else if (result.user.role === 'company') {
-            setTimeout(() => { window.location.href = './company/pages/dashboard.html'; }, 700);
-        } else {
-            setTimeout(() => { window.location.href = './user/pages/dashboard.html'; }, 700);
-        }
+        const dest = result.user.role === 'admin' ? './admin/pages/dashboard.html'
+                   : result.user.role === 'company' ? './company/pages/dashboard.html'
+                   : './user/pages/dashboard.html';
+        setTimeout(() => { window.location.href = dest; }, 700);
     } catch (error) {
-        showToast(error.message, 'error');
+        showToast(error.message || 'Đăng nhập thất bại.', 'error');
     }
 }
 
 function forgotPassword() {
-    showToast('Vui lòng liên hệ admin để đặt lại mật khẩu.', 'success', 3000);
-}
-
-
-function collectRegistrationConsents() {
-    return {
-        terms: !!document.getElementById('consent-terms')?.checked,
-        privacy: !!document.getElementById('consent-privacy')?.checked,
-        candidateConsent: !!document.getElementById('consent-candidate')?.checked,
-        companyPolicy: !!document.getElementById('consent-company')?.checked,
-        marketing: !!document.getElementById('consent-marketing')?.checked,
-    };
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    if (!email || !EMAIL_PATTERN.test(email)) {
+        showToast('Nhập email hợp lệ vào ô đăng nhập rồi bấm Quên mật khẩu.', 'error');
+        return;
+    }
+    CVMSAuth.client().auth.resetPasswordForEmail(email)
+        .then(() => showToast('Đã gửi email đặt lại mật khẩu (nếu email tồn tại).', 'success', 4500))
+        .catch((err) => showToast(err.message || 'Không gửi được email đặt lại mật khẩu.', 'error'));
 }
 
 function handleOAuth(provider) {
