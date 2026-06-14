@@ -65,6 +65,28 @@ function createSupabaseStore(supabaseUrl, supabaseKey, defaultJobs, defaultCompa
     return data;
   }
 
+  async function adminCreateAuthUser({ email, password, name }) {
+    const response = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { name } }),
+    });
+    const raw = await response.text();
+    const data = raw ? JSON.parse(raw) : null;
+    if (!response.ok) {
+      const msg = data?.msg || data?.message || data?.error_description || data?.error || response.statusText;
+      const err = new Error(msg);
+      err.status = response.status;
+      err.code = data?.error_code || data?.code || '';
+      throw err;
+    }
+    return data;
+  }
+
   async function uploadPrivateCv(email, cv = {}) {
     const file = decodeDataUrl(cv.dataUrl || cv.base64 || '');
     const ext = String(cv.ext || '').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'bin';
@@ -490,25 +512,49 @@ function createSupabaseStore(supabaseUrl, supabaseKey, defaultJobs, defaultCompa
     return normalizeApplication(app);
   }
 
-  async function register({ name, email, role = 'user', authUserId = '', consents = {}, ip = '', userAgent = '' }) {
-    if (!name || !email || !authUserId) return { ok: false, msg: 'Thi?u th?ng tin ??ng k? Supabase Auth!' };
-    const normalizedRole = role === 'company' ? 'company' : 'user';
-    const consentError = validateRegistrationConsents(normalizedRole, consents);
-    if (consentError) return { ok: false, msg: consentError };
-    if (email === 'admincv@gmail.com' || normalizedRole === 'admin') return { ok: false, msg: 'Kh?ng ???c ??ng k? role admin t? frontend!' };
-    const existingByAuth = await getUserByAuthId(authUserId);
-    if (existingByAuth) return { ok: true, user: existingByAuth };
-    const exists = await selectOne('users', `?select=*&email=eq.${encodeFilter(email)}`);
-    if (exists) {
-      await request('users', `?email=eq.${encodeFilter(email)}`, { method: 'PATCH', body: { auth_user_id: authUserId, name: exists.name || name, role: exists.role || normalizedRole } });
-    } else {
+  async function register() {
+    return { ok: false, msg: '??ng k? c?ng khai ph?i d?ng Supabase Auth t? frontend (signUp). Backend ch? t?o profile sau khi user x?c nh?n email v? ??ng nh?p l?n ??u.' };
+  }
+
+  async function loginFromAuth({ authPayload = {}, ip = '', userAgent = '' }) {
+    const authUserId = authPayload.id;
+    const email = String(authPayload.email || '').trim().toLowerCase();
+    if (!authUserId || !email) {
+      return { ok: false, code: 'invalid_token', msg: 'Token kh?ng h?p l?.' };
+    }
+    if (!authPayload.email_confirmed_at && !authPayload.confirmed_at) {
+      return { ok: false, code: 'email_not_confirmed', msg: 'B?n c?n x?c nh?n email tr??c khi ??ng nh?p. Vui l?ng ki?m tra h?p th?.' };
+    }
+    let user = await getUserByAuthId(authUserId);
+    if (!user) {
+      const byEmail = await selectOne('users', `?select=*&email=eq.${encodeFilter(email)}`);
+      if (byEmail && !byEmail.auth_user_id) {
+        await request('users', `?email=eq.${encodeFilter(email)}`, { method: 'PATCH', body: { auth_user_id: authUserId } });
+        user = await getUserByAuthId(authUserId);
+      } else if (byEmail && byEmail.auth_user_id && byEmail.auth_user_id !== authUserId) {
+        return { ok: false, code: 'email_taken', msg: 'Email n?y ?? li?n k?t t?i kho?n kh?c.' };
+      }
+    }
+    if (!user) {
+      const meta = authPayload.user_metadata || {};
+      const rawRole = String(meta.cvms_role || meta.role || 'user').toLowerCase();
+      if (!['user', 'company'].includes(rawRole)) {
+        return { ok: false, code: 'invalid_role', msg: 'Vai trò đăng ký không hợp lệ.' };
+      }
+      const role = rawRole;
+      const name = String(meta.name || meta.full_name || email.split('@')[0]).trim() || 'Ng??i d?ng';
+      const status = role === 'company' ? 'pending' : 'active';
       await request('users', '', {
         method: 'POST',
-        body: { email, name, auth_user_id: authUserId, role: normalizedRole, status: normalizedRole === 'company' ? 'pending' : 'active', companyRole: normalizedRole === 'company' ? '??i t?c doanh nghi?p' : '' },
+        body: { email, name, auth_user_id: authUserId, role, status, companyRole: role === 'company' ? '??i t?c doanh nghi?p' : '' },
       });
+      const consents = meta.consents || {};
+      if (consents && (consents.terms || consents.privacy || consents.candidateConsent || consents.companyPolicy || consents.marketing)) {
+        try { await saveUserConsents(email, role, consents, ip, userAgent); } catch {}
+      }
+      user = await getUserByAuthId(authUserId);
     }
-    await saveUserConsents(email, normalizedRole, consents, ip, userAgent);
-    const user = await getUserByAuthId(authUserId);
+    if (!user) return { ok: false, code: 'profile_create_failed', msg: 'Kh?ng t?o ???c profile.' };
     return { ok: true, user };
   }
 
@@ -1139,6 +1185,7 @@ function createSupabaseStore(supabaseUrl, supabaseKey, defaultJobs, defaultCompa
     login,
     getUserByEmail,
     getUserByAuthId,
+    loginFromAuth,
     oauthLogin,
     updateProfile,
     getNotifications,
