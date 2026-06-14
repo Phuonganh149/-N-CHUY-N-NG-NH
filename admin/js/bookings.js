@@ -30,7 +30,6 @@ function statusBadge(status) {
     pending_payment: 'badge-amber',
     waiting_admin_confirm: 'badge-blue',
     payment_confirmed: 'badge-green',
-    job_created: 'badge-purple',
     rejected: 'badge-red',
   }[status] || 'badge-blue';
   return `<span class="badge ${cls}">${escapeHTML(bookingStatusLabels[status] || status || 'Chờ xử lý')}</span>`;
@@ -49,11 +48,9 @@ function renderStats() {
   const total = bookingsCache.length;
   const paid = bookingsCache.filter(item => item.paymentStatus === 'customer_confirmed' || item.status === 'waiting_admin_confirm').length;
   const confirmed = bookingsCache.filter(item => item.paymentStatus === 'admin_confirmed' || item.status === 'payment_confirmed').length;
-  const jobs = bookingsCache.filter(item => item.jobId || item.status === 'job_created').length;
   setText('booking-stat-total', total);
   setText('booking-stat-paid', paid);
   setText('booking-stat-confirmed', confirmed);
-  setText('booking-stat-jobs', jobs);
 }
 
 function setText(id, value) {
@@ -72,7 +69,7 @@ function renderBookings(list) {
   tbody.innerHTML = list.map(item => {
     const canConfirm = item.paymentStatus === 'customer_confirmed' || item.status === 'waiting_admin_confirm';
     const canCreateJob = item.paymentStatus === 'admin_confirmed' || item.status === 'payment_confirmed' || item.status === 'job_created';
-    const hasJob = !!item.jobId || item.status === 'job_created';
+    const hasJob = false;
     return `
       <tr>
         <td>
@@ -99,15 +96,11 @@ function renderBookings(list) {
         <td>
           ${statusBadge(item.status)}
           ${item.rejectedReason ? `<div class="cpos">${escapeHTML(item.rejectedReason)}</div>` : ''}
-          ${hasJob ? `<div class="cpos">Job #${Number(item.jobId || 0)}</div>` : ''}
         </td>
         <td>
           <div class="booking-actions">
             <button class="action-btn success" type="button" onclick="confirmBooking(${Number(item.id)})" ${canConfirm ? '' : 'disabled'}>
               <i class="ti ti-check"></i> Xác nhận CK
-            </button>
-            <button class="action-btn primary" type="button" onclick="openJobFromBookingModal(${Number(item.id)})" ${canCreateJob && !hasJob ? '' : 'disabled'}>
-              <i class="ti ti-briefcase"></i> Tạo tin
             </button>
             <button class="action-btn danger" type="button" onclick="rejectBooking(${Number(item.id)})" ${item.status === 'rejected' || hasJob ? 'disabled' : ''}>
               <i class="ti ti-x"></i> Từ chối
@@ -179,118 +172,7 @@ function rejectBooking(id) {
   }
 }
 
-function openJobFromBookingModal(id) {
-  const booking = bookingsCache.find(item => Number(item.id) === Number(id));
-  if (!booking) return;
-  activeBookingId = id;
-  ensureJobFromBookingModal();
-  setField('booking-job-title', booking.jobTitle || '');
-  setField('booking-job-location', 'Hà Nội');
-  setField('booking-job-dept', booking.industry || 'Other');
-  setField('booking-job-salary', 'Thỏa thuận');
-  setField('booking-job-deadline', defaultDeadline(Number(booking.duration || 30)));
-  setField('booking-job-qty', Math.max(1, Number(booking.quantity || 1)));
-  setField('booking-job-tags', [booking.industry, booking.packageLabel].filter(Boolean).join(', '));
-  setText('booking-job-company', booking.companyName || 'Doanh nghiệp');
-  document.getElementById('booking-job-modal').style.display = 'flex';
-}
-
-function closeJobFromBookingModal() {
-  const modal = document.getElementById('booking-job-modal');
-  if (modal) modal.style.display = 'none';
-  activeBookingId = null;
-}
-
-function ensureJobFromBookingModal() {
-  if (document.getElementById('booking-job-modal')) return;
-  const modal = document.createElement('div');
-  modal.id = 'booking-job-modal';
-  modal.className = 'cvms-modal booking-job-modal';
-  modal.innerHTML = `
-    <div class="cvms-dialog">
-      <div class="cvms-dialog-head">
-        <div>
-          <h3>Tạo tin từ booking</h3>
-          <p>Doanh nghiệp: <strong id="booking-job-company"></strong></p>
-        </div>
-        <button class="modal-close" type="button" onclick="closeJobFromBookingModal()" title="Đóng"><i class="ti ti-x"></i></button>
-      </div>
-      <form id="booking-job-form" class="booking-job-form">
-        <label class="form-field span-2">
-          <span>Vị trí tuyển dụng</span>
-          <input id="booking-job-title" required placeholder="VD: Nhân viên kinh doanh">
-        </label>
-        <label class="form-field">
-          <span>Địa điểm</span>
-          <input id="booking-job-location" required placeholder="Hà Nội">
-        </label>
-        <label class="form-field">
-          <span>Bộ phận/ngành</span>
-          <input id="booking-job-dept" required placeholder="Kinh doanh">
-        </label>
-        <label class="form-field">
-          <span>Mức lương</span>
-          <input id="booking-job-salary" placeholder="Thỏa thuận">
-        </label>
-        <label class="form-field">
-          <span>Hạn nộp</span>
-          <input id="booking-job-deadline" required placeholder="dd/mm/yyyy">
-        </label>
-        <label class="form-field">
-          <span>Số lượng</span>
-          <input id="booking-job-qty" type="number" min="1" required>
-        </label>
-        <label class="form-field">
-          <span>Từ khóa</span>
-          <input id="booking-job-tags" placeholder="Sales, CRM, B2B">
-        </label>
-        <div class="booking-modal-actions span-2">
-          <button class="action-btn" type="button" onclick="closeJobFromBookingModal()">Hủy</button>
-          <button class="add-btn" type="submit"><i class="ti ti-device-floppy"></i> Tạo tin tuyển dụng</button>
-        </div>
-      </form>
-    </div>`;
-  document.body.appendChild(modal);
-  modal.addEventListener('click', e => { if (e.target === modal) closeJobFromBookingModal(); });
-  document.getElementById('booking-job-form').addEventListener('submit', submitJobFromBooking);
-}
-
-function submitJobFromBooking(event) {
-  event.preventDefault();
-  if (!activeBookingId) return;
-  const payload = {
-    title: document.getElementById('booking-job-title').value.trim(),
-    location: document.getElementById('booking-job-location').value.trim(),
-    dept: document.getElementById('booking-job-dept').value.trim(),
-    salary: document.getElementById('booking-job-salary').value.trim() || 'Thỏa thuận',
-    deadline: document.getElementById('booking-job-deadline').value.trim(),
-    qty: Number(document.getElementById('booking-job-qty').value || 1),
-    tags: document.getElementById('booking-job-tags').value.trim(),
-  };
-  if (!payload.title || !payload.location || !payload.deadline) {
-    showAdminToast('Vui lòng nhập vị trí, địa điểm và hạn nộp.', 'error');
-    return;
-  }
-  try {
-    const result = CVMS.createJobFromBooking(activeBookingId, payload);
-    closeJobFromBookingModal();
-    showAdminToast(`Đã tạo tin "${result.job?.title || payload.title}".`);
-    refreshBookings();
-  } catch (error) {
-    showAdminToast(error.message, 'error');
-  }
-}
-
-function setField(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.value = value;
-}
-
-function defaultDeadline(days = 30) {
-  const date = new Date();
-  date.setDate(date.getDate() + Math.max(7, Number(days || 30)));
-  return date.toLocaleDateString('vi-VN');
-}
+// Admin kh?ng t?o tin t? booking. Lu?ng ??ng: x?c nh?n thanh to?n -> k?ch ho?t subscription -> doanh nghi?p t? ??ng tin.
 
 function showAdminToast(msg, type = 'success') {
   let t = document.getElementById('admin-toast');

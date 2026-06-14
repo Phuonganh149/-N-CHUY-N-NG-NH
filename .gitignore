@@ -35,3 +35,6 @@ ios/App/Pods/
 ios/App/output/
 DerivedData/
 xcuserdata/
+
+# Supabase local link/cache
+supabase/.temp/
