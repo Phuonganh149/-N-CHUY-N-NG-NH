@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&family=Playfair+Display:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Nunito', sans-serif;
+    font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
 }
 
 body {
@@ -142,8 +142,8 @@ body {
 }
 
 .container form h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 26px;
+    font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
+    font-size: 25px;
     color: #0f0e59;
     margin-bottom: 8px;
 }
@@ -307,8 +307,8 @@ body {
 }
 
 .toggle-panel h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 24px;
+    font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
+    font-size: 23px;
     margin-bottom: 10px;
     color: #fff;
 }
@@ -378,4 +378,61 @@ body {
     .sign-up { display: none; }
     .container.active .sign-up { display: flex; }
     .container.active .sign-in { display: none; }
+}
+
+
+/* Fix l?i ph?ng ch? ti?ng Vi?t ? form ??ng k?/??ng nh?p */
+.container,
+.container input,
+.container select,
+.container button,
+.container a,
+.container span,
+.toggle-panel,
+.toast {
+    font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif !important;
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
+}
+
+.container form h1,
+.toggle-panel h1 {
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.18;
+}
+
+.auth-select,
+.container input::placeholder {
+    font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif !important;
+}
+
+
+.consent-box {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin: 6px 0 0;
+    text-align: left;
+}
+.consent-box label {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: #475569;
+}
+.consent-box input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    margin: 1px 0 0;
+    flex: 0 0 auto;
+}
+.consent-box a {
+    font-size: inherit;
+    margin: 0;
+    color: #475ee2;
+    font-weight: 700;
 }

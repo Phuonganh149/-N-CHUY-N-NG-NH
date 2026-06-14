@@ -4,7 +4,7 @@
   "private": true,
   "description": "Ứng dụng quản lý tuyển dụng, CV và quy trình xét duyệt ứng viên cho doanh nghiệp.",
   "scripts": {
-    "dev": "node --experimental-sqlite scripts/serve.mjs",
+    "dev": "node scripts/serve.mjs",
     "db:migrate:supabase": "node --experimental-sqlite scripts/migrate-sqlite-to-supabase.mjs",
     "mobile:prepare": "node scripts/prepare-mobile.mjs",
     "mobile:sync": "npm run mobile:prepare && cap sync",

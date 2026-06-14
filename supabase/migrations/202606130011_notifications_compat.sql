@@ -1,0 +1,14 @@
+alter table public.notifications add column if not exists role text;
+alter table public.notifications add column if not exists "targetEmail" text;
+alter table public.notifications add column if not exists type text;
+alter table public.notifications add column if not exists title text;
+alter table public.notifications add column if not exists body text;
+alter table public.notifications add column if not exists "appId" bigint;
+alter table public.notifications add column if not exists "jobId" bigint;
+alter table public.notifications add column if not exists "companyId" bigint;
+alter table public.notifications add column if not exists "jobTitle" text;
+alter table public.notifications add column if not exists "userEmail" text;
+alter table public.notifications add column if not exists time text;
+alter table public.notifications add column if not exists read boolean not null default false;
+do $$ begin begin alter table public.notifications alter column user_id drop not null; exception when others then null; end; end $$;
+notify pgrst, 'reload schema';

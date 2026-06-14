@@ -1,0 +1,13 @@
+alter table public.jobs add column if not exists title text;
+alter table public.jobs add column if not exists company text;
+alter table public.jobs add column if not exists location text;
+alter table public.jobs add column if not exists salary text;
+alter table public.jobs add column if not exists "salaryNum" integer not null default 0;
+alter table public.jobs add column if not exists deadline text;
+alter table public.jobs add column if not exists tags jsonb not null default '[]'::jsonb;
+alter table public.jobs add column if not exists dept text;
+alter table public.jobs add column if not exists qty integer not null default 1;
+alter table public.jobs add column if not exists applicants integer not null default 0;
+alter table public.jobs add column if not exists status text not null default 'Chờ kiểm duyệt';
+alter table public.jobs add column if not exists active boolean not null default false;
+notify pgrst, 'reload schema';

@@ -1,7 +1,9 @@
 const ADMIN_PAYMENT = {
-  bankName: 'MB Bank',
-  accountName: 'CVMS Admin',
-  accountNumber: '0987654321',
+  bankName: 'Vietcombank',
+  accountName: 'PHAN VAN HIEU',
+  accountNumber: '9987519081',
+  branch: 'PGD V?n Qu?n',
+  qrImage: './assets/payment/vietcombank-qr.jpg',
 };
 
 const PACKAGE_PRICES = {
@@ -92,7 +94,8 @@ function renderPayment(source = currentBooking) {
   document.getElementById('bookingCode').textContent = item.id ? `#${item.id}` : 'Chưa gửi';
   document.getElementById('paymentAmount').textContent = money(item.totalAmount);
   document.getElementById('transferNote').textContent = transferText;
-  document.getElementById('bookingQr').src = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(transferText)}`;
+  document.getElementById('bookingQr').src = ADMIN_PAYMENT.qrImage;
+  document.getElementById('bookingQr').alt = `QR chuy?n kho?n ${ADMIN_PAYMENT.bankName} - ${ADMIN_PAYMENT.accountName}`;
   document.getElementById('totalAmount').textContent = money(getTotalAmount());
 }
 

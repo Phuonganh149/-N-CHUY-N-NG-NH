@@ -59,94 +59,61 @@
       <!-- KPI cards -->
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-label">Thời gian lấp chỗ TB</div>
-          <div class="stat-val">23</div>
-          <div class="stat-delta" style="color:var(--text-secondary)">ngày / vị trí</div>
+          <div class="stat-label">Doanh thu đã ghi nhận</div>
+          <div class="stat-val" id="finance-revenue">0đ</div>
+          <div class="stat-delta" style="color:var(--text-secondary)">Gói đăng tuyển + phí mở CV</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Chi phí tuyển dụng</div>
-          <div class="stat-val">4.2M</div>
-          <div class="stat-delta delta-up">↓ 12% tháng trước</div>
+          <div class="stat-label">Nạp ví đã xác nhận</div>
+          <div class="stat-val" id="finance-topups">0đ</div>
+          <div class="stat-delta delta-warn">Không tính là doanh thu</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Tỷ lệ chuyển đổi</div>
-          <div class="stat-val">14%</div>
-          <div class="stat-delta delta-up">↑ 2% tháng này</div>
+          <div class="stat-label">Doanh thu mở CV</div>
+          <div class="stat-val" id="finance-cv-revenue">0đ</div>
+          <div class="stat-delta delta-up">Từ phí 1%-2% ví</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">NPS ứng viên</div>
-          <div class="stat-val">72</div>
-          <div class="stat-delta delta-up">Tốt xuất sắc</div>
+          <div class="stat-label">Hoa hồng mở CV</div>
+          <div class="stat-val" id="finance-rate">1.5%</div>
+          <div class="stat-delta delta-up">Có thể cấu hình</div>
         </div>
       </div>
 
-      <!-- Source + Department -->
-      <div class="report-grid">
+      <div class="row2" style="margin:14px 0">
         <div class="card">
-          <div class="card-title">Nguồn ứng viên hiệu quả</div>
-          <div class="metric-row">
-            <span>Referral</span>
-            <div class="source-bar-row">
-              <div class="source-bar-wrap progress-bar"><div class="progress-fill" style="width:90%;background:#1d9e75"></div></div>
-              <span class="source-pct">90%</span>
-            </div>
-          </div>
-          <div class="metric-row">
-            <span>LinkedIn</span>
-            <div class="source-bar-row">
-              <div class="source-bar-wrap progress-bar"><div class="progress-fill" style="width:78%"></div></div>
-              <span class="source-pct">78%</span>
-            </div>
-          </div>
-          <div class="metric-row">
-            <span>Website</span>
-            <div class="source-bar-row">
-              <div class="source-bar-wrap progress-bar"><div class="progress-fill" style="width:55%"></div></div>
-              <span class="source-pct">55%</span>
-            </div>
-          </div>
-          <div class="metric-row">
-            <span>TopCV</span>
-            <div class="source-bar-row">
-              <div class="source-bar-wrap progress-bar"><div class="progress-fill" style="width:42%;background:#ba7517"></div></div>
-              <span class="source-pct">42%</span>
-            </div>
-          </div>
-          <div class="metric-row">
-            <span>Facebook</span>
-            <div class="source-bar-row">
-              <div class="source-bar-wrap progress-bar"><div class="progress-fill" style="width:30%;background:#e24b4a"></div></div>
-              <span class="source-pct">30%</span>
-            </div>
-          </div>
+          <div class="card-title">Nạp ví chờ admin xác nhận</div>
+          <table class="data-table">
+            <thead><tr><th>Mã</th><th>Doanh nghiệp</th><th>Số tiền</th><th></th></tr></thead>
+            <tbody id="financeTopupBody"></tbody>
+          </table>
         </div>
-
         <div class="card">
-          <div class="card-title">Nguồn UV (Doughnut)</div>
-          <div class="chart-container" style="height:200px">
-            <canvas id="sourceChart"></canvas>
+          <div class="card-title">Cấu hình phí mở CV</div>
+          <div class="metric-row">
+            <span>Tỷ lệ hiện tại</span>
+            <input id="commissionRateInput" class="filter-select" type="number" min="1" max="2" step="0.1" value="1.5" style="width:120px">
           </div>
+          <button class="add-btn" type="button" onclick="saveCommissionRate()"><i class="ti ti-device-floppy"></i> Lưu tỷ lệ</button>
+          <p style="color:var(--text-secondary);font-size:12px;line-height:1.6">Hệ thống chỉ cho phép từ 1% đến 2%. Frontend không gửi phí mở CV hay số dư ví.</p>
         </div>
       </div>
 
-      <!-- Dept performance -->
-      <div class="row2" style="margin-top:14px">
-        <div class="card">
-          <div class="card-title">Thời gian lấp chỗ theo bộ phận</div>
-          <div class="metric-row"><span>Operations</span><span class="badge badge-green">18 ngày TB</span></div>
-          <div class="metric-row"><span>Engineering</span><span class="badge badge-blue">23 ngày TB</span></div>
-          <div class="metric-row"><span>Design</span><span class="badge badge-purple">27 ngày TB</span></div>
-          <div class="metric-row"><span>Marketing</span><span class="badge badge-amber">31 ngày TB</span></div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">Ứng viên theo tháng (Bar)</div>
-          <div class="chart-container" style="height:200px">
-            <canvas id="reportBarChart"></canvas>
-          </div>
-        </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">Giao d?ch v? g?n ??y</div>
+        <table class="data-table">
+          <thead><tr><th>Doanh nghi?p</th><th>Lo?i</th><th>S? ti?n</th><th>Sau giao d?ch</th><th>Th?i gian</th></tr></thead>
+          <tbody id="financeTransactionBody"></tbody>
+        </table>
       </div>
 
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">Doanh thu n?n t?ng g?n ??y</div>
+        <table class="data-table">
+          <thead><tr><th>Ngu?n</th><th>S? ti?n</th><th>Tham chi?u</th><th>Ghi nh?n</th></tr></thead>
+          <tbody id="financeRevenueBody"></tbody>
+        </table>
+      </div>
     </div>
   </main>
 </div>

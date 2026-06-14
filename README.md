@@ -256,3 +256,51 @@ Cần Android Studio và JDK 17 hoặc mới hơn để build APK.
 ## Tên đề tài
 
 **Xây dựng ứng dụng quản lý tuyển dụng, hồ sơ CV và quy trình xét duyệt ứng viên cho doanh nghiệp.**
+
+
+## C?p nh?t ki?n tr?c production
+
+Phi?n b?n hi?n t?i ?u ti?n tri?n khai ch?nh th?c theo m? h?nh **HTML/CSS/JS + Node.js backend + Supabase hosted**.
+
+- Supabase l? database/runtime ch?nh khi ch?y web.
+- SQLite ch? d?ng ?? migrate d? li?u c? b?ng `npm.cmd run db:migrate:supabase`, kh?ng d?ng l?m production runtime.
+- `SUPABASE_SERVICE_ROLE_KEY` ch? ???c ??t trong `.env` backend ho?c bi?n m?i tr??ng hosting, kh?ng ??a v?o frontend/GitHub.
+- `.env` v? `supabase/.temp/` ?? ???c ignore.
+
+### Vai tr?
+
+- `user`: ?ng vi?n xem vi?c l?m, ?ng tuy?n, upload CV PDF private.
+- `company`: doanh nghi?p ?? ???c x?c minh, t? mua g?i, ??ng tin, nh?n h? s?, m? CV b?ng v?, qu?n l? pipeline/l?ch ph?ng v?n.
+- `admin`: qu?n tr? n?n t?ng, x?c nh?n g?i/n?p v?, ki?m duy?t tin, c?u h?nh hoa h?ng, xem doanh thu/ho?n ti?n/tranh ch?p. Admin kh?ng t?o tin/qu?n l? ?ng vi?n/pipeline thay doanh nghi?p.
+
+### Lu?ng mua g?i
+
+1. Doanh nghi?p g?i y?u c?u/mua g?i.
+2. Doanh nghi?p chuy?n kho?n theo QR Vietcombank.
+3. Admin x?c nh?n thanh to?n.
+4. H? th?ng k?ch ho?t `company_subscriptions` v? x?c minh doanh nghi?p.
+5. Doanh nghi?p t? t?o tin; tin ? tr?ng th?i `Ch? ki?m duy?t` cho t?i khi admin duy?t.
+
+### Lu?ng v? v? m? CV
+
+- M?i y?u c?u n?p v? c? m? chuy?n kho?n ri?ng.
+- Admin x?c nh?n n?p v? b?ng RPC, c?ng v? ??ng m?t l?n v? ghi `wallet_transactions`.
+- M? CV b?ng RPC, tr? ph? ??ng m?t l?n theo `application_accesses`, kh?ng cho s? d? ?m.
+- Ph? m? CV d?ng t? l? 1%-2% v? c? min/max fee trong `commission_settings`.
+- CV l?u trong bucket private `private-cvs`; backend ch? t?o signed URL ng?n h?n cho ?ng vi?n s? h?u CV ho?c doanh nghi?p ?? m? kh?a.
+
+### Migration production m?i
+
+C?c migration b? sung quan tr?ng:
+
+```text
+supabase/migrations/202606140001_production_hardening.sql
+supabase/migrations/202606140002_subscription_booking_ref.sql
+```
+
+Ch?y ki?m tra/push migration:
+
+```powershell
+npx supabase db push --dry-run
+npx supabase db push
+```

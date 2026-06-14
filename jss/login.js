@@ -29,10 +29,11 @@ function showToast(msg, type = 'success', duration = 2500) {
     setTimeout(() => toast.classList.remove('show'), duration);
 }
 
-function apiRequest(path, body) {
+function apiRequest(path, body, token = '') {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', path, false);
     xhr.setRequestHeader('Content-Type', 'application/json');
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.send(JSON.stringify(body || {}));
     let data = {};
     try { data = JSON.parse(xhr.responseText || '{}'); } catch {}
@@ -40,7 +41,7 @@ function apiRequest(path, body) {
     return data;
 }
 
-function handleSignUp(e) {
+async function handleSignUp(e) {
     e.preventDefault();
 
     const name     = document.getElementById('reg-name').value.trim();
@@ -62,14 +63,24 @@ function handleSignUp(e) {
     }
 
     try {
-        const result = apiRequest('/api/auth/register', { name, email, password, role });
-        if (!result.ok) {
-            showToast(result.msg || 'Không đăng ký được.', 'error');
+        const authResult = await CVMSAuth.signUp(email, password);
+        if (authResult.error) throw authResult.error;
+        const accessToken = authResult.data.session?.access_token;
+        if (!accessToken) {
+            showToast('Supabase ?? t?o t?i kho?n. Vui l?ng x?c nh?n email r?i ??ng nh?p ?? ho?n t?t h? s?.', 'success', 4500);
             return;
         }
+        const result = apiRequest('/api/auth/register', { name, email, role, consents }, accessToken);
+        if (!result.ok) {
+            showToast(result.msg || 'Kh?ng ??ng k? ???c.', 'error');
+            return;
+        }
+        localStorage.setItem('cvms_user', JSON.stringify(result.user || {}));
+        localStorage.setItem('cvms_token', accessToken);
+        if (authResult.data.user?.id) localStorage.setItem('cvms_auth_user_id', authResult.data.user.id);
         showToast(role === 'company'
-            ? 'Đăng ký doanh nghiệp thành công! Hãy đăng nhập để vào dashboard doanh nghiệp.'
-            : 'Đăng ký thành công! Hãy đăng nhập.'
+            ? '??ng k? doanh nghi?p th?nh c?ng! H?y ??ng nh?p ?? v?o dashboard doanh nghi?p.'
+            : '??ng k? th?nh c?ng! H?y ??ng nh?p.'
         );
         setTimeout(() => {
             document.getElementById('container').classList.remove('active');
@@ -81,7 +92,7 @@ function handleSignUp(e) {
     }
 }
 
-function handleSignIn(e) {
+async function handleSignIn(e) {
     e.preventDefault();
 
     const email    = document.getElementById('login-email').value.trim().toLowerCase();
@@ -93,15 +104,20 @@ function handleSignIn(e) {
     }
 
     try {
-        const result = apiRequest('/api/auth/login', { email, password });
+        const authResult = await CVMSAuth.signIn(email, password);
+        if (authResult.error) throw authResult.error;
+        const accessToken = authResult.data.session?.access_token;
+        if (!accessToken) throw new Error('Supabase Auth kh?ng tr? v? access token.');
+        const result = apiRequest('/api/auth/login', {}, accessToken);
         if (!result.ok) {
-            showToast(result.msg || 'Email hoặc mật khẩu không đúng!', 'error');
+            showToast(result.msg || 'Email ho?c m?t kh?u kh?ng ??ng!', 'error');
             return;
         }
 
         localStorage.setItem('cvms_user', JSON.stringify(result.user));
-        localStorage.setItem('cvms_token', result.token || '');
-        showToast('Đăng nhập thành công! Chào mừng ' + result.user.name + '!');
+        localStorage.setItem('cvms_token', accessToken);
+        if (authResult.data.user?.id) localStorage.setItem('cvms_auth_user_id', authResult.data.user.id);
+        showToast('??ng nh?p th?nh c?ng! Ch?o m?ng ' + result.user.name + '!');
 
         if (result.user.role === 'admin') {
             setTimeout(() => { window.location.href = './admin/pages/dashboard.html'; }, 700);
@@ -117,6 +133,17 @@ function handleSignIn(e) {
 
 function forgotPassword() {
     showToast('Vui lòng liên hệ admin để đặt lại mật khẩu.', 'success', 3000);
+}
+
+
+function collectRegistrationConsents() {
+    return {
+        terms: !!document.getElementById('consent-terms')?.checked,
+        privacy: !!document.getElementById('consent-privacy')?.checked,
+        candidateConsent: !!document.getElementById('consent-candidate')?.checked,
+        companyPolicy: !!document.getElementById('consent-company')?.checked,
+        marketing: !!document.getElementById('consent-marketing')?.checked,
+    };
 }
 
 function handleOAuth(provider) {

@@ -14,6 +14,9 @@ const groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
 const groqModel = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 const sessions = new Map();
 const oauthStates = new Map();
+const cvFileTokens = new Map();
+const rateBuckets = new Map();
+const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 // Điền API/OAuth key trực tiếp tại đây nếu bạn không muốn dùng .env.
 // Khuyến nghị thật: vẫn nên để key trong .env để tránh lộ khi share code.
@@ -27,6 +30,9 @@ const CODE_KEYS = {
   FACEBOOK_CLIENT_ID: '',
   FACEBOOK_CLIENT_SECRET: '',
 };
+
+const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const supabaseAnonKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 
 const secretConfig = {
   groqApiKey: process.env.GROQ_API_KEY || CODE_KEYS.GROQ_API_KEY,
@@ -87,8 +93,10 @@ const types = {
 };
 
 createServer(async (req, res) => {
+  applySecurityHeaders(res);
   try {
     if ((req.url || '').startsWith('/api/')) {
+      if (!checkRateLimit(req, res)) return;
       await handleApi(req, res);
       return;
     }
@@ -101,6 +109,37 @@ createServer(async (req, res) => {
   console.log(`CVMS backend + web: http://localhost:${port}`);
   console.log(`Database provider: ${store.provider}${store.dbPath ? ` (${store.dbPath})` : ''}`);
 });
+
+
+function applySecurityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cache-Control', 'no-store');
+}
+
+function checkRateLimit(req, res) {
+  const method = req.method || 'GET';
+  if (!WRITE_METHODS.has(method) && !(req.url || '').includes('/api/auth/login')) return true;
+  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'local').toString().split(',')[0].trim();
+  const now = Date.now();
+  const windowMs = 60_000;
+  const max = (req.url || '').includes('/api/auth/login') ? 12 : 90;
+  const key = `${ip}:${(req.url || '').split('?')[0]}:${method}`;
+  const bucket = rateBuckets.get(key) || { count: 0, resetAt: now + windowMs };
+  if (now > bucket.resetAt) {
+    bucket.count = 0;
+    bucket.resetAt = now + windowMs;
+  }
+  bucket.count += 1;
+  rateBuckets.set(key, bucket);
+  if (bucket.count > max) {
+    sendJson(res, 429, { error: 'B?n thao t?c qu? nhanh. Vui l?ng th? l?i sau ?t ph?t.' });
+    return false;
+  }
+  return true;
+}
 
 async function loadEnv() {
   try {
@@ -174,6 +213,9 @@ async function handleApi(req, res) {
   const authUser = await getAuthUser(req);
 
   if (method === 'GET' && path === '/api/health') return sendJson(res, 200, { ok: true, database: store.provider });
+  if (method === 'GET' && path === '/api/public-config') return sendJson(res, 200, { supabaseUrl, supabaseAnonKey });
+  const cvFile = path.match(/^\/api\/cv-files\/([a-f0-9]+)$/);
+  if (method === 'GET' && cvFile) return serveLocalCvFile(res, cvFile[1]);
   if (method === 'POST' && path === '/api/chat') return chatWithAi(res, body);
 
   if (method === 'GET' && path === '/api/companies') return sendJson(res, 200, { companies: await store.getCompanies() });
@@ -193,24 +235,23 @@ async function handleApi(req, res) {
     return sendJson(res, 200, { jobs: companyId ? jobs.filter((job) => Number(job.companyId) === companyId) : jobs });
   }
   if (method === 'POST' && path === '/api/jobs') {
-    if (!requireRole(res, authUser, 'admin')) return;
-    const payload = await normalizeJobPayloadForPlatform(res, body);
-    if (!payload) return;
-    return sendJson(res, 200, { job: await store.addJob(payload) });
+    if (authUser?.role === 'admin') return sendJson(res, 403, { error: 'Admin nền tảng không tạo tin thay doanh nghiệp. Doanh nghiệp tự đăng tin trong Company Portal.' });
+    if (!requireRole(res, authUser, 'company')) return;
+    return sendJson(res, 200, { job: await store.addCompanyJob(authUser, body) });
   }
 
   const jobClose = path.match(/^\/api\/jobs\/(\d+)\/close$/);
   if (method === 'POST' && jobClose) {
-    if (!requireRole(res, authUser, 'admin')) return;
-    return sendJson(res, 200, { job: await store.closeJob(Number(jobClose[1])) });
+    if (authUser?.role === 'admin') return sendJson(res, 403, { error: 'Admin không đóng tin thay doanh nghiệp, chỉ kiểm duyệt tin.' });
+    if (!requireRole(res, authUser, 'company')) return;
+    return sendJson(res, 200, { job: await store.updateCompanyJobStatus(authUser, Number(jobClose[1]), 'close') });
   }
 
   const jobPatch = path.match(/^\/api\/jobs\/(\d+)$/);
   if (method === 'PATCH' && jobPatch) {
-    if (!requireRole(res, authUser, 'admin')) return;
-    const payload = await normalizeJobPayloadForPlatform(res, body, true);
-    if (!payload) return;
-    return sendJson(res, 200, { job: await store.updateJob(Number(jobPatch[1]), payload) });
+    if (authUser?.role === 'admin') return sendJson(res, 403, { error: 'Admin không sửa tin thay doanh nghiệp, chỉ kiểm duyệt tin.' });
+    if (!requireRole(res, authUser, 'company')) return;
+    return sendJson(res, 200, { job: await store.updateCompanyJob(authUser, Number(jobPatch[1]), body) });
   }
 
   if (method === 'GET' && path === '/api/applications') {
@@ -240,20 +281,21 @@ async function handleApi(req, res) {
 
   const appStatus = path.match(/^\/api\/applications\/(\d+)\/status$/);
   if (method === 'PATCH' && appStatus) {
-    if (!requireRole(res, authUser, 'admin')) return;
-    return sendJson(res, 200, { application: await store.updateApplicationStatus(Number(appStatus[1]), body.status, body.adminNote || '') });
+    if (authUser?.role === 'admin') return sendJson(res, 403, { error: 'Admin nền tảng không quản lý pipeline thay doanh nghiệp.' });
+    if (!requireRole(res, authUser, 'company')) return;
+    return sendJson(res, 200, { application: await store.updateCompanyPipelineStage(authUser, Number(appStatus[1]), statusToStage(body.status), { interviewNote: body.adminNote || '' }) });
   }
 
   const appPipeline = path.match(/^\/api\/applications\/(\d+)\/pipeline$/);
   if (method === 'PATCH' && appPipeline) {
-    if (!requireRole(res, authUser, 'admin')) return;
-    return sendJson(res, 200, { application: await store.updatePipelineStage(Number(appPipeline[1]), body.stage) });
+    if (authUser?.role === 'admin') return sendJson(res, 403, { error: 'Admin nền tảng không quản lý pipeline thay doanh nghiệp.' });
+    if (!requireRole(res, authUser, 'company')) return;
+    return sendJson(res, 200, { application: await store.updateCompanyPipelineStage(authUser, Number(appPipeline[1]), body.stage, body) });
   }
 
   const appShareCompany = path.match(/^\/api\/applications\/(\d+)\/share-company$/);
   if (method === 'POST' && appShareCompany) {
-    if (!requireRole(res, authUser, 'admin')) return;
-    return sendJson(res, 200, { ok: true, application: await store.shareApplicationWithCompany(Number(appShareCompany[1]), body.note || '') });
+    return sendJson(res, 403, { error: 'Đã bỏ luồng admin chia sẻ CV. Hồ sơ được gửi trực tiếp về doanh nghiệp sở hữu tin.' });
   }
 
   const appCompanyFeedback = path.match(/^\/api\/applications\/(\d+)\/company-feedback$/);
@@ -318,13 +360,7 @@ async function handleApi(req, res) {
 
   const bookingCreateJob = path.match(/^\/api\/company-bookings\/(\d+)\/create-job$/);
   if (method === 'POST' && bookingCreateJob) {
-    if (!requireRole(res, authUser, 'admin')) return;
-    try {
-      const result = await store.createJobFromBooking(Number(bookingCreateJob[1]), body || {});
-      return sendJson(res, 200, { ok: true, ...result });
-    } catch (error) {
-      return sendJson(res, 400, { error: error.message });
-    }
+    return sendJson(res, 403, { error: 'Admin không tạo tin từ booking nữa. Admin chỉ xác nhận gói; doanh nghiệp tự đăng tin.' });
   }
 
   const bookingReject = path.match(/^\/api\/company-bookings\/(\d+)\/reject$/);
@@ -348,21 +384,149 @@ async function handleApi(req, res) {
     return sendJson(res, 200, await store.getCompanyDashboard(authUser));
   }
 
+  if (method === 'POST' && path === '/api/company/jobs') {
+    if (!requireRole(res, authUser, 'company')) return;
+    try {
+      return sendJson(res, 200, { ok: true, job: await store.addCompanyJob(authUser, body) });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+  const companyJobPatch = path.match(/^\/api\/company\/jobs\/(\d+)$/);
+  if (method === 'PATCH' && companyJobPatch) {
+    if (!requireRole(res, authUser, 'company')) return;
+    try {
+      return sendJson(res, 200, { ok: true, job: await store.updateCompanyJob(authUser, Number(companyJobPatch[1]), body) });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+  const companyJobStatus = path.match(/^\/api\/company\/jobs\/(\d+)\/status$/);
+  if (method === 'PATCH' && companyJobStatus) {
+    if (!requireRole(res, authUser, 'company')) return;
+    try {
+      return sendJson(res, 200, { ok: true, job: await store.updateCompanyJobStatus(authUser, Number(companyJobStatus[1]), body.status || body.action) });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  if (method === 'GET' && path === '/api/company/cv-unlock-quote') {
+    if (!requireRole(res, authUser, 'company')) return;
+    try { return sendJson(res, 200, { ok: true, quote: await store.getCvUnlockQuote(authUser) }); }
+    catch (error) { return sendJson(res, 400, { error: error.message }); }
+  }
+  if (method === 'POST' && path === '/api/company/subscriptions') {
+    if (!requireRole(res, authUser, 'company')) return;
+    try { return sendJson(res, 200, { ok: true, subscription: await store.requestSubscription(authUser, body.planId || body.packageKey) }); }
+    catch (error) { return sendJson(res, 400, { error: error.message }); }
+  }
+  if (method === 'POST' && path === '/api/company/refunds') {
+    if (!requireRole(res, authUser, 'company')) return;
+    try { return sendJson(res, 200, { ok: true, refund: await store.requestRefund(authUser, body) }); }
+    catch (error) { return sendJson(res, 400, { error: error.message }); }
+  }
+  if (method === 'POST' && path === '/api/company/disputes') {
+    if (!requireRole(res, authUser, 'company')) return;
+    try { return sendJson(res, 200, { ok: true, dispute: await store.createDispute(authUser, body) }); }
+    catch (error) { return sendJson(res, 400, { error: error.message }); }
+  }
+
+  if (method === 'POST' && path === '/api/company/wallet-topups') {
+    if (!requireRole(res, authUser, 'company')) return;
+    try {
+      if (!body?.confirmed) return sendJson(res, 400, { error: 'Vui l?ng x?c nh?n giao d?ch n?p v? tr??c khi g?i.' });
+      return sendJson(res, 200, { ok: true, topup: await store.requestWalletTopup(authUser, body) });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+  const companyUnlock = path.match(/^\/api\/company\/applications\/(\d+)\/unlock$/);
+  if (method === 'POST' && companyUnlock) {
+    if (!requireRole(res, authUser, 'company')) return;
+    try {
+      if (!body?.confirmed) return sendJson(res, 400, { error: 'Vui l?ng x?c nh?n ph? m? CV tr??c khi tr? v?.' });
+      const access = await store.unlockApplication(authUser, Number(companyUnlock[1]));
+      return sendJson(res, 200, { ok: true, access });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+  const companyCvUrl = path.match(/^\/api\/company\/applications\/(\d+)\/cv-url$/);
+  if (method === 'GET' && companyCvUrl) {
+    if (!requireRole(res, authUser, 'company')) return;
+    try {
+      const result = await store.getApplicationCvUrl(authUser, Number(companyCvUrl[1]));
+      return sendJson(res, 200, { ok: true, ...withLocalCvUrl(req, result) });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  if (method === 'GET' && path === '/api/admin/finance') {
+    if (!requireRole(res, authUser, 'admin')) return;
+    return sendJson(res, 200, await store.getAdminFinance());
+  }
+  const adminTopupConfirm = path.match(/^\/api\/admin\/wallet-topups\/(\d+)\/confirm$/);
+  if (method === 'PATCH' && adminTopupConfirm) {
+    if (!requireRole(res, authUser, 'admin')) return;
+    try {
+      return sendJson(res, 200, { ok: true, topup: await store.adminConfirmWalletTopup(Number(adminTopupConfirm[1]), authUser) });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
+  const adminSubConfirm = path.match(/^\/api\/admin\/subscriptions\/(\d+)\/confirm$/);
+  if (method === 'PATCH' && adminSubConfirm) {
+    if (!requireRole(res, authUser, 'admin')) return;
+    try { return sendJson(res, 200, { ok: true, subscription: await store.adminConfirmSubscription(Number(adminSubConfirm[1]), authUser) }); }
+    catch (error) { return sendJson(res, 400, { error: error.message }); }
+  }
+  const adminRefundApprove = path.match(/^\/api\/admin\/refunds\/(\d+)\/approve$/);
+  if (method === 'PATCH' && adminRefundApprove) {
+    if (!requireRole(res, authUser, 'admin')) return;
+    try { return sendJson(res, 200, { ok: true, refund: await store.adminApproveRefund(Number(adminRefundApprove[1]), authUser) }); }
+    catch (error) { return sendJson(res, 400, { error: error.message }); }
+  }
+
+  if (method === 'PATCH' && path === '/api/admin/commission') {
+    if (!requireRole(res, authUser, 'admin')) return;
+    try {
+      return sendJson(res, 200, { ok: true, setting: await store.updateCommissionSetting(body.rate, authUser) });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+  const adminModerateJob = path.match(/^\/api\/admin\/jobs\/(\d+)\/moderate$/);
+  if (method === 'PATCH' && adminModerateJob) {
+    if (!requireRole(res, authUser, 'admin')) return;
+    try {
+      return sendJson(res, 200, { ok: true, job: await store.moderateJob(authUser, Number(adminModerateJob[1]), body.decision || 'approve', body.note || '') });
+    } catch (error) {
+      return sendJson(res, 400, { error: error.message });
+    }
+  }
+
   if (method === 'GET' && path === '/api/notifications') {
     if (!requireUser(res, authUser)) return;
-    return sendJson(res, 200, { notifications: await store.getNotifications(authUser.role, authUser.email) });
+    return sendJson(res, 200, { notifications: await store.getNotifications(authUser.role, authUser.email, authUser.companyId) });
   }
   if (method === 'POST' && path === '/api/notifications/read') {
     if (!requireUser(res, authUser)) return;
-    await store.markNotificationsRead(authUser.role, authUser.email);
+    await store.markNotificationsRead(authUser.role, authUser.email, authUser.companyId);
     return sendJson(res, 200, { ok: true });
   }
 
-  if (method === 'POST' && path === '/api/auth/register') return sendJson(res, 200, await store.register(body));
+  if (method === 'POST' && path === '/api/auth/register') {
+    const auth = await verifySupabaseToken(getBearerToken(req));
+    if (!auth.ok) return sendJson(res, 401, { error: 'Token Supabase Auth kh?ng h?p l? ho?c h?t h?n.' });
+    return sendJson(res, 200, await store.register({ ...body, email: auth.user.email || body.email, authUserId: auth.user.id, ip: getClientIp(req), userAgent: req.headers['user-agent'] || '' }));
+  }
   if (method === 'POST' && path === '/api/auth/login') {
-    const result = await store.login(body);
-    if (result.ok) result.token = createSession(result.user);
-    return sendJson(res, 200, result);
+    const auth = await verifySupabaseToken(getBearerToken(req));
+    if (!auth.ok) return sendJson(res, 401, { ok: false, msg: 'Token Supabase Auth kh?ng h?p l? ho?c h?t h?n.' });
+    return sendJson(res, 200, await store.login({ authUserId: auth.user.id, email: auth.user.email }));
   }
   const oauthStart = path.match(/^\/api\/auth\/oauth\/(google|github|facebook)\/start$/);
   if (method === 'GET' && oauthStart) return startOAuth(req, res, oauthStart[1]);
@@ -383,19 +547,23 @@ async function handleApi(req, res) {
 
   if (method === 'GET' && path === '/api/cvs') {
     if (!requireRole(res, authUser, 'admin')) return;
-    return sendJson(res, 200, { cvs: await store.getCvIndex() });
+    return sendJson(res, 403, { error: 'Admin kh?ng ???c xem danh s?ch CV m?c ??nh. Ch? metadata ph?c v? audit ???c truy c?p qua b?o c?o quy?n.' });
   }
   const cvPath = path.match(/^\/api\/cvs\/(.+)$/);
   if (cvPath && method === 'GET') {
     if (!requireUser(res, authUser)) return;
     const email = decodeURIComponent(cvPath[1]);
     if (!canAccessEmail(authUser, email)) return sendJson(res, 403, { error: 'Forbidden' });
-    return sendJson(res, 200, { cv: await store.getCv(email) });
+    const cv = await store.getCv(email);
+    const urlResult = authUser.role === 'user' && authUser.email === email && typeof store.getUserCvUrl === 'function' ? await store.getUserCvUrl(authUser, email) : {};
+    return sendJson(res, 200, { cv, ...withLocalCvUrl(req, urlResult) });
   }
   if (cvPath && method === 'PUT') {
     if (!requireUser(res, authUser)) return;
     const email = decodeURIComponent(cvPath[1]);
     if (!canAccessEmail(authUser, email)) return sendJson(res, 403, { error: 'Forbidden' });
+    const cvError = validateCvPayload(body);
+    if (cvError) return sendJson(res, 400, { error: cvError });
     return sendJson(res, 200, { cv: await store.saveCv(email, body) });
   }
   if (cvPath && method === 'DELETE') {
@@ -414,8 +582,49 @@ async function handleApi(req, res) {
   sendJson(res, 404, { error: 'API route not found' });
 }
 
+
+function getClientIp(req) {
+  return String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+}
+
 function getOrigin(req) {
   return `http://${req.headers.host}`;
+}
+
+function withLocalCvUrl(req, result = {}) {
+  if (!result?.storagePath || typeof store.readLocalCv !== 'function') return result;
+  const token = randomBytes(16).toString('hex');
+  cvFileTokens.set(token, { storagePath: result.storagePath, expiresAt: Date.now() + 10 * 60 * 1000 });
+  return { ...result, url: `${getOrigin(req)}/api/cv-files/${token}` };
+}
+
+async function serveLocalCvFile(res, token) {
+  const record = cvFileTokens.get(token);
+  if (!record || record.expiresAt < Date.now()) {
+    cvFileTokens.delete(token);
+    return sendJson(res, 403, { error: 'CV link expired or invalid' });
+  }
+  try {
+    const bytes = await store.readLocalCv(record.storagePath);
+    res.writeHead(200, {
+      'Content-Type': 'application/octet-stream',
+      'Cache-Control': 'no-store',
+      'Content-Disposition': 'inline',
+    });
+    res.end(bytes);
+  } catch (error) {
+    sendJson(res, 404, { error: 'CV file not found' });
+  }
+}
+
+function statusToStage(status) {
+  return {
+    'Mới nộp': 'new',
+    'Đang xem xét': 'screening',
+    'Phỏng vấn': 'interview',
+    'Đã offer': 'offer',
+    'Từ chối': 'rejected',
+  }[status] || 'screening';
 }
 
 function getOAuthConfig(provider) {
@@ -586,19 +795,24 @@ function getBearerToken(req) {
   return match ? match[1].trim() : '';
 }
 
-async function getAuthUser(req) {
-  const token = getBearerToken(req);
-  if (!token) return null;
-  const session = sessions.get(token);
-  if (!session?.user) return null;
-  const freshUser = typeof store.getUserByEmail === 'function'
-    ? await store.getUserByEmail(session.user.email)
-    : session.user;
-  if (freshUser) {
-    sessions.set(token, { user: freshUser, createdAt: session.createdAt || Date.now() });
-    return freshUser;
+async function verifySupabaseToken(token) {
+  if (!token || !supabaseUrl || !supabaseAnonKey) return { ok: false };
+  try {
+    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${token}` },
+    });
+    const user = await response.json().catch(() => null);
+    if (!response.ok || !user?.id) return { ok: false };
+    return { ok: true, user };
+  } catch {
+    return { ok: false };
   }
-  return session.user;
+}
+
+async function getAuthUser(req) {
+  const auth = await verifySupabaseToken(getBearerToken(req));
+  if (!auth.ok) return null;
+  return typeof store.getUserByAuthId === 'function' ? await store.getUserByAuthId(auth.user.id) : null;
 }
 
 function destroySession(req) {
@@ -1140,6 +1354,20 @@ function readJson(req) {
       }
     });
   });
+}
+
+
+function validateCvPayload(body = {}) {
+  const name = String(body.name || '').trim();
+  const ext = String(body.ext || name.split('.').pop() || '').toLowerCase();
+  const type = String(body.type || '').toLowerCase();
+  const size = Number(body.size || 0);
+  const allowedExt = new Set(['pdf']);
+  const allowedMime = new Set(['application/pdf']);
+  if (!allowedExt.has(ext) || !allowedMime.has(type)) return 'Ch? cho ph?p upload CV d?ng PDF.';
+  if (!size || size > 5 * 1024 * 1024) return 'CV ph?i nh? h?n ho?c b?ng 5MB.';
+  if (!String(body.dataUrl || body.base64 || '').startsWith('data:application/pdf')) return 'File CV kh?ng ??ng ??nh d?ng PDF.';
+  return '';
 }
 
 function sendJson(res, status, data) {

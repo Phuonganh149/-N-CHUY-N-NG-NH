@@ -44,6 +44,15 @@ const CVMS = {
   closeJob(id) {
     return this._request('POST', `/api/jobs/${id}/close`).job;
   },
+  addCompanyJob(job) {
+    return this._request('POST', '/api/company/jobs', job).job;
+  },
+  updateCompanyJob(id, patch) {
+    return this._request('PATCH', `/api/company/jobs/${id}`, patch).job;
+  },
+  updateCompanyJobStatus(id, status) {
+    return this._request('PATCH', `/api/company/jobs/${id}/status`, { status }).job;
+  },
 
   getApplications() {
     return this._request('GET', '/api/applications').applications || [];
@@ -87,6 +96,48 @@ const CVMS = {
   getCompanyDashboard() {
     return this._request('GET', '/api/company/dashboard');
   },
+  requestWalletTopup(payload) {
+    return this._request('POST', '/api/company/wallet-topups', payload).topup;
+  },
+  getCvUnlockQuote() {
+    return this._request('GET', '/api/company/cv-unlock-quote').quote;
+  },
+  requestSubscription(planId) {
+    return this._request('POST', '/api/company/subscriptions', { planId }).subscription;
+  },
+  requestRefund(payload) {
+    return this._request('POST', '/api/company/refunds', payload).refund;
+  },
+  createDispute(payload) {
+    return this._request('POST', '/api/company/disputes', payload).dispute;
+  },
+  unlockApplication(appId, payload = {}) {
+    return this._request('POST', `/api/company/applications/${appId}/unlock`, payload).access;
+  },
+  getApplicationCvUrl(appId) {
+    return this._request('GET', `/api/company/applications/${appId}/cv-url`);
+  },
+  updateCompanyPipeline(appId, payload) {
+    return this._request('PATCH', `/api/applications/${appId}/pipeline`, payload).application;
+  },
+  getAdminFinance() {
+    return this._request('GET', '/api/admin/finance');
+  },
+  adminConfirmWalletTopup(id) {
+    return this._request('PATCH', `/api/admin/wallet-topups/${id}/confirm`).topup;
+  },
+  updateCommission(rate) {
+    return this._request('PATCH', '/api/admin/commission', { rate }).setting;
+  },
+  adminConfirmSubscription(id) {
+    return this._request('PATCH', `/api/admin/subscriptions/${id}/confirm`).subscription;
+  },
+  adminApproveRefund(id) {
+    return this._request('PATCH', `/api/admin/refunds/${id}/approve`).refund;
+  },
+  moderateJob(id, decision, note = '') {
+    return this._request('PATCH', `/api/admin/jobs/${id}/moderate`, { decision, note }).job;
+  },
 
   getSavedJobs() {
     return this._request('GET', '/api/saved-jobs').savedJobs || [];
@@ -127,14 +178,19 @@ const CVMS = {
   saveCV(email, cvData) {
     return this._request('PUT', `/api/cvs/${encodeURIComponent(email)}`, cvData).cv;
   },
+  saveCv(email, cvData) { return this.saveCV(email, cvData); },
+  getCv(email) { return this.getCV(email); },
+  deleteCv(email) { return this.deleteCV(email); },
   deleteCV(email) {
     return this._request('DELETE', `/api/cvs/${encodeURIComponent(email)}`);
   },
 
   logout() {
+    try { if (window.CVMSAuth) window.CVMSAuth.signOut(); } catch {}
     try { this._request('POST', '/api/auth/logout'); } catch {}
     localStorage.removeItem('cvms_user');
     localStorage.removeItem('cvms_token');
+    localStorage.removeItem('cvms_auth_user_id');
   },
 };
 
