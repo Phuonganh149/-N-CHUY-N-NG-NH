@@ -1,0 +1,12 @@
+package com.cvmanagement.utilities;
+
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.interfaces.DecodedJWT;
+
+public class decodeJWT {
+    public static void main(String[] args) {
+        String accessToken = "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6ImNmNGI2MzUxLWFjZWQtNDY4Yi1hMzliLWMzYjZiOWMzODJmYiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2VwcmF4bnJlbGRkdHh5aXRlb3lyLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkZDEzZTc4Yi1iNDIzLTRhZDMtOTU2OS0zYTMwYzAxODA0Y2YiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzgxMjQzNTM1LCJpYXQiOjE3ODEyMzk5MzUsImVtYWlsIjoiY2FuZGlkYXRlMUBnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsIjoiY2FuZGlkYXRlMUBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJkZDEzZTc4Yi1iNDIzLTRhZDMtOTU2OS0zYTMwYzAxODA0Y2YifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc4MTIzOTkzNX1dLCJzZXNzaW9uX2lkIjoiYjQxYjM5NDctMTYyNy00YzA5LThiM2MtYmU3MjQ4YzAyMDI4IiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.HxSfD-40YuOPrx0trxjYEFz-Lp4-Zn3KzjNt6yFMl4X7N_faGwwjsbcTz_y24VtIJHDs1f26QUodpTXQY8P2Dg";
+        DecodedJWT jwt = JWT.decode(accessToken.substring(7));
+        System.out.println(jwt.getClaim("sub"));
+    }
+}
