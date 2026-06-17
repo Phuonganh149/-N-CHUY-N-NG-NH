@@ -25,7 +25,7 @@ import static com.cvmanagement.enums.DBSchema.Applications.*;
  * </ul>
  */
 @Repository
-public class ApplicationsRepo extends CrudRepoInterface<applications, Integer> {
+public class ApplicationsRepo implements CrudRepoInterface<applications, Integer> {
 
     private DataSource dataSource;
 

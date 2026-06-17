@@ -1,10 +1,10 @@
 package com.cvmanagement.controllers;
 
-import com.cvmanagement.dto.request.JobGetResponse;
-import com.cvmanagement.dto.request.JobPatchRequest;
-import com.cvmanagement.dto.request.JobPostRequest;
+import com.cvmanagement.dto.request.Job.JobPatchRequest;
+import com.cvmanagement.dto.request.Job.JobPostRequest;
+import com.cvmanagement.dto.response.Job.JobGetResponse;
 import com.cvmanagement.exceptions.BusinessException;
-import com.cvmanagement.services.JobService;
+import com.cvmanagement.services.CoreEntityService.JobService;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -45,7 +45,7 @@ public class JobController {
     @GetMapping("/{job_id}")
     public ResponseEntity<Object> getJob(@PathVariable int jobId) {
         try {
-            return ResponseEntity.ok(new JobGetResponse(jobService.get(jobId)));
+            return ResponseEntity.ok(new JobGetResponse(jobService.read(jobId)));
         } catch (BusinessException e) {
             return new ResponseEntity<>("Không thể lấy công việc do " + e.getMessage(), HttpStatusCode.valueOf(400));
         } catch (Exception e) {
@@ -71,7 +71,7 @@ public class JobController {
             if (request.title() == null) throw new BusinessException("tiêu đề không được để trống");
             if (request.company() == null) throw new BusinessException("tên công ty không được để trống");
             if (request.deadline() == null) throw new BusinessException("ngày hết hạn không được để trống");
-            jobService.add(request);
+            jobService.create(request);
             return ResponseEntity.ok("Thành công");
         } catch (BusinessException e) {
             return new ResponseEntity<>("Không thể tạo công việc do " + e.getMessage(), HttpStatusCode.valueOf(400));
@@ -95,7 +95,7 @@ public class JobController {
             if (request == null || (!request.isTitleProvided() && !request.isDeadlineProvided())) {
                 throw new BusinessException("request không hợp lệ");
             }
-            jobService.update(jobId, request);
+            jobService.update(request, jobId);
             return ResponseEntity.ok("Thành công");
         } catch (BusinessException e) {
             return new ResponseEntity<>("Không thể cập nhật công việc do " + e.getMessage(), HttpStatusCode.valueOf(400));

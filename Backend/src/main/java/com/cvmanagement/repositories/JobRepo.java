@@ -29,7 +29,7 @@ import static com.cvmanagement.enums.DBSchema.Jobs.*;
  * </ul>
  */
 @Repository
-public class JobRepo extends CrudRepoInterface<Job, Integer> {
+public class JobRepo implements CrudRepoInterface<Job, Integer> {
     private final DataSource dataSource;
 
     public JobRepo(DataSource dataSource) {

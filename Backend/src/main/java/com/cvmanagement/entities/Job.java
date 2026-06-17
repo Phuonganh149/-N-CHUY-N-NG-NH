@@ -1,6 +1,6 @@
 package com.cvmanagement.entities;
 
-import com.cvmanagement.enums.JobLocation;
+import com.cvmanagement.enums.CompanyLocation;
 import com.cvmanagement.enums.JobStatus;
 
 import java.math.BigDecimal;
@@ -14,7 +14,7 @@ public class Job {
     private UUID userId;
     private String title;
     private String company;
-    private JobLocation location;
+    private CompanyLocation location;
     private String salaryText;
     private BigDecimal salaryMin;
     private BigDecimal salaryMax;
@@ -29,7 +29,7 @@ public class Job {
     private Instant createdAt;
     private Instant updatedAt;
 
-    public Job(int id, UUID userId, String title, String company, JobLocation location, String salaryText, BigDecimal salaryMin, BigDecimal salaryMax, String department, int quantity, String description, String requirements, ArrayList<String> tags, Instant deadline, JobStatus status, boolean active, Instant createdAt, Instant updatedAt) {
+    public Job(int id, UUID userId, String title, String company, CompanyLocation location, String salaryText, BigDecimal salaryMin, BigDecimal salaryMax, String department, int quantity, String description, String requirements, ArrayList<String> tags, Instant deadline, JobStatus status, boolean active, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.userId = userId;
         this.title = title;
@@ -86,11 +86,11 @@ public class Job {
         this.company = company;
     }
 
-    public JobLocation getLocation() {
+    public CompanyLocation getLocation() {
         return location;
     }
 
-    public void setLocation(JobLocation location) {
+    public void setLocation(CompanyLocation location) {
         this.location = location;
     }
 

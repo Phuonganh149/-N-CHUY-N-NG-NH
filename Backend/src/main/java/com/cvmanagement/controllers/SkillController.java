@@ -1,9 +1,9 @@
 package com.cvmanagement.controllers;
 
-import com.cvmanagement.dto.request.SkillPatchRequest;
-import com.cvmanagement.dto.request.SkillPostRequest;
+import com.cvmanagement.dto.request.Skill.SkillPatchRequest;
+import com.cvmanagement.dto.request.Skill.SkillPostRequest;
 import com.cvmanagement.exceptions.BusinessException;
-import com.cvmanagement.services.SkillService;
+import com.cvmanagement.services.CoreEntityService.SkillService;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -56,7 +56,7 @@ public class SkillController {
     @GetMapping("/{skillId}")
     public ResponseEntity<Object> getSkill(@PathVariable int skillId) {
         try {
-            return ResponseEntity.ok(skillService.get(skillId));
+            return ResponseEntity.ok(skillService.read(skillId));
         } catch (BusinessException e) {
             return new ResponseEntity<>("Không thể lấy skill do " + e.getMessage(), HttpStatusCode.valueOf(400));
         } catch (Exception e) {
@@ -77,7 +77,7 @@ public class SkillController {
             if (request == null || !request.isNameProvided()) {
                 throw new BusinessException("request không hợp lệ");
             }
-            skillService.update(skillId, request);
+            skillService.update(request, skillId);
             return ResponseEntity.ok("Cập nhật thành công");
         } catch (BusinessException e) {
             return new ResponseEntity<>("Không thể cập nhật skill do " + e.getMessage(), HttpStatusCode.valueOf(400));

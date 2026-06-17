@@ -1,6 +1,6 @@
 package com.cvmanagement.controllers;
 
-import com.cvmanagement.dto.request.CandidateSignupRequest;
+import com.cvmanagement.dto.request.Candidate.CandidateSignupRequest;
 import com.cvmanagement.dto.request.LoginRequest;
 import com.cvmanagement.dto.response.LoginResponse;
 import com.cvmanagement.exceptions.BusinessException;

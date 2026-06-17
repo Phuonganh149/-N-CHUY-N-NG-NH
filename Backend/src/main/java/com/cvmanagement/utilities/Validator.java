@@ -1,13 +1,9 @@
 package com.cvmanagement.utilities;
 
-import com.cvmanagement.dto.dto;
-import com.cvmanagement.dto.request.CandidatePatchRequest;
 import com.cvmanagement.exceptions.BusinessException;
 
-import java.lang.reflect.Field;
-import java.util.*;
+import java.util.UUID;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class Validator<T> {
     public static void isUsernameValid(String username) {
@@ -84,6 +80,10 @@ public class Validator<T> {
         ) throw new BusinessException("Số điện thoại không hợp lệ");
     }
 
+    public static void isIndustryValid(String industry) {
+        // TODO: HOÀN THIỆN VALIDATE INDUSTRY
+    }
+
     public static void isEmailValid(String email) {
         // Không được null hoặc blank
         if (email == null || email.isBlank()) {
@@ -112,18 +112,18 @@ public class Validator<T> {
         }
     }
 
-    public static void isRequestBodyValid(Map<String, Object> requestBody, dto input) throws BusinessException {
-        Set<String> validFields = Arrays.stream(CandidatePatchRequest.class.getDeclaredFields()).map(Field::getName).collect(Collectors.toSet());
-        String[] inputField = requestBody.keySet().stream().filter(elem -> !validFields.contains(elem)).toArray(String[]::new);
-        if (inputField.length != 0) {
-            StringJoiner result = new StringJoiner(", ");
-            for (String elem : inputField) {
-                result.add(elem);
-            }
-            throw new BusinessException("Request field không hợp lệ: " + result.toString());
-
-        }
-    }
+//    public static void isRequestBodyValid(Map<String, Object> requestBody, dto input) throws BusinessException {
+//        Set<String> validFields = Arrays.stream(CandidatePatcwhRequest.class.getDeclaredFields()).map(Field::getName).collect(Collectors.toSet());
+//        String[] inputField = requestBody.keySet().stream().filter(elem -> !validFields.contains(elem)).toArray(String[]::new);
+//        if (inputField.length != 0) {
+//            StringJoiner result = new StringJoiner(", ");
+//            for (String elem : inputField) {
+//                result.add(elem);
+//            }
+//            throw new BusinessException("Request field không hợp lệ: " + result.toString());
+//
+//        }
+//    }
 
     public static void isCompanyNameValid(String companyName) throws BusinessException {
         // Tên công ty hợp lệ

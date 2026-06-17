@@ -7,7 +7,7 @@ public enum PipelineStage {
     REVIEW("Đánh giá lại"),
     OFFER("Mời nhận việc"),
     HIRED("Nhận việc");
-    public final String value;
+    private final String value;
 
     PipelineStage(String value) {
         this.value = value;

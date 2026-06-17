@@ -13,7 +13,7 @@ import java.util.*;
 import static com.cvmanagement.enums.DBSchema.User.*;
 
 @Repository
-public class CandidateRepo extends CrudRepoInterface<Candidate, UUID> {
+public class CandidateRepo implements CrudRepoInterface<Candidate, UUID> {
     private final DataSource dataSource;
 
     public CandidateRepo(DataSource dataSource) {

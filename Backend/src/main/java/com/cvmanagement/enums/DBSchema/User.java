@@ -18,7 +18,7 @@ public enum User {
     CREATED_AT("created_at"),
     UPDATED_AT("updated_at");
 
-    public final String value;
+    private final String value;
 
     User(String value) {
         this.value = value;

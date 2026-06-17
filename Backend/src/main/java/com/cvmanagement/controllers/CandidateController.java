@@ -1,9 +1,9 @@
 package com.cvmanagement.controllers;
 
-import com.cvmanagement.dto.request.CandidatePatchRequest;
-import com.cvmanagement.dto.response.CandidateGetResponse;
+import com.cvmanagement.dto.request.Candidate.CandidatePatchRequest;
+import com.cvmanagement.dto.response.Candidate.CandidateGetResponse;
 import com.cvmanagement.exceptions.BusinessException;
-import com.cvmanagement.services.CandidateService;
+import com.cvmanagement.services.CoreEntityService.CandidateService;
 import com.cvmanagement.utilities.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +50,7 @@ public class CandidateController {
         try {
             log.info("Nhận được yêu cầu lấy thông tin ứng viên {}", userId);
             Validator.isUserIdValid(userId);
-            return ResponseEntity.ok(new CandidateGetResponse(candidateService.get(UUID.fromString(userId))));
+            return ResponseEntity.ok(new CandidateGetResponse(candidateService.read(UUID.fromString(userId))));
         } catch (BusinessException e) {
             return new ResponseEntity<>("Không thể lấy thông tin do " + e.getMessage(), HttpStatusCode.valueOf(400));
         } catch (Exception e) {
@@ -130,7 +130,7 @@ public class CandidateController {
                     + request.getTwoFactorEnabled());
 */
 
-            candidateService.edit(UUID.fromString(userId), request);
+            candidateService.update(request, UUID.fromString(userId));
             return ResponseEntity.ok("Cập nhật thành công");
         } catch (BusinessException e) {
             return new ResponseEntity<>("Cập nhật tài khoản thất bại do " + e.getMessage(), HttpStatusCode.valueOf(400));

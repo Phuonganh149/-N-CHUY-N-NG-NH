@@ -3,12 +3,13 @@ package com.cvmanagement.services;
 import com.cvmanagement.dto.SignupAccount;
 import com.cvmanagement.dto.SupabaseLoginResponse;
 import com.cvmanagement.dto.SupabaseSignupResponse;
-import com.cvmanagement.dto.request.CandidateSignupRequest;
+import com.cvmanagement.dto.request.Candidate.CandidateSignupRequest;
 import com.cvmanagement.dto.request.LoginRequest;
 import com.cvmanagement.dto.response.LoginResponse;
 import com.cvmanagement.entities.Account;
 import com.cvmanagement.exceptions.BusinessException;
 import com.cvmanagement.repositories.AccountRepo;
+import com.cvmanagement.services.CoreEntityService.CandidateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -103,7 +104,7 @@ public class AuthService {
             );
 
             // Yêu cầu service dành riêng cho ứng viên thêm vào Repo
-            candidateService.add(curr);
+            candidateService.create(curr);
 
         } catch (BusinessException e) {
             log.error("Yêu cầu đăng ký tài khoản {} không thành công do {}", request.email(), e.getMessage());

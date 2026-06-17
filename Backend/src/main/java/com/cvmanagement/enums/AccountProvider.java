@@ -4,5 +4,5 @@ public enum AccountProvider {
     Email,
     Google,
     Facebook,
-    Linkedin
+    Github
 }

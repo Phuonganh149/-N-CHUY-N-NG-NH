@@ -2,11 +2,11 @@ package com.cvmanagement.controllers;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.cvmanagement.dto.request.ApplicationPatchRequest;
-import com.cvmanagement.dto.request.ApplicationsPostRequest;
-import com.cvmanagement.dto.response.ApplicationGetResponse;
+import com.cvmanagement.dto.request.Application.ApplicationPatchRequest;
+import com.cvmanagement.dto.request.Application.ApplicationsPostRequest;
+import com.cvmanagement.dto.response.Application.ApplicationGetResponse;
 import com.cvmanagement.exceptions.BusinessException;
-import com.cvmanagement.services.ApplicationService;
+import com.cvmanagement.services.CoreEntityService.ApplicationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatusCode;
@@ -57,7 +57,7 @@ public class ApplicationController {
     @GetMapping("/id")
     public ResponseEntity<Object> getApplication(@RequestBody Integer applicationId) {
         try {
-            return ResponseEntity.ok(new ApplicationGetResponse(applicationService.get(applicationId)));
+            return ResponseEntity.ok(new ApplicationGetResponse(applicationService.read(applicationId)));
         } catch (BusinessException e) {
             return new ResponseEntity<>("Lấy dữ liệu đơn không thành công do " + e.getMessage(), HttpStatusCode.valueOf(400));
         } catch (Exception e) {
@@ -88,10 +88,10 @@ public class ApplicationController {
 
             String sub = jwt.getSubject();
 
-            UUID userId = UUID.fromString(sub);
-            System.out.println(userId);
+            request.setApplicateCandidateId(UUID.fromString(sub));
+
             //Gửi vào applicationService
-            applicationService.create(request, userId);
+            applicationService.create(request);
             return ResponseEntity.ok("Thành công");
 
         } catch (BusinessException e) {
@@ -118,7 +118,7 @@ public class ApplicationController {
             if (!request.isStatusProvided() && !request.isStageProvided() && !request.isAdminNoteProvided()) {
                 throw new BusinessException("Không có trường cập nhật hợp lệ");
             }
-            applicationService.update(application_id, request);
+            applicationService.update(request, application_id);
             return ResponseEntity.ok("Cập nhật thành công");
         } catch (BusinessException e) {
             return new ResponseEntity<>("Cập nhật thất bại do " + e.getMessage(), HttpStatusCode.valueOf(400));

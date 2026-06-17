@@ -7,7 +7,7 @@ public enum ApplicationStatus {
     OFFERED("Đã offer"),
     DECLINED("Từ chối");
 
-    public final String value;
+    private final String value;
 
     ApplicationStatus(String value) {
         this.value = value;

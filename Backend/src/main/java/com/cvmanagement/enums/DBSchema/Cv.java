@@ -14,7 +14,7 @@ public enum Cv {
     CREATED_AT("created_at"),
     UPDATED_AT("updated_at");
 
-    public final String value;
+    private final String value;
 
     Cv(String value) {
         this.value = value;

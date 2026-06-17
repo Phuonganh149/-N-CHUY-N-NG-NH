@@ -38,5 +38,11 @@ xcuserdata/
 
 # Supabase local link/cache
 supabase/.temp/
+<<<<<<< Updated upstream
 application.properties 
 Backend/src/main/resources/application.properties 
+=======
+/Backend/.idea
+Backend/target/classes/application.properties
+application.properties
+>>>>>>> Stashed changes

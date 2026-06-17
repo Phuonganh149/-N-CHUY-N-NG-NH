@@ -11,7 +11,7 @@ public enum Applications {
     APPLIED_AT("applied_at"),
     UPDATED_AT("updated_at");
 
-    public final String value;
+    private final String value;
 
     Applications(String value) {
         this.value = value;

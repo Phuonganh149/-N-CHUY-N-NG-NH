@@ -25,7 +25,7 @@ import static com.cvmanagement.enums.DBSchema.Skills.*;
  * </ul>
  */
 @Repository
-public class SkillRepo extends CrudRepoInterface<Skill, Integer> {
+public class SkillRepo implements CrudRepoInterface<Skill, Integer> {
     private final DataSource dataSource;
 
     public SkillRepo(DataSource dataSource) {

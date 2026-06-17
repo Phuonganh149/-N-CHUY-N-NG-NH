@@ -1,8 +1,8 @@
 package com.cvmanagement.mappers;
 
 import com.cvmanagement.entities.Job;
+import com.cvmanagement.enums.CompanyLocation;
 import com.cvmanagement.enums.DBSchema.Jobs;
-import com.cvmanagement.enums.JobLocation;
 import com.cvmanagement.enums.JobStatus;
 
 import java.sql.*;
@@ -51,7 +51,7 @@ public class mapJobs {
                     (UUID) rs.getObject(CREATED_BY.value()),
                     rs.getString(TITLE.value()),
                     rs.getString(COMPANY.value()),
-                    JobLocation.valueOf(rs.getString(LOCATION.value())),
+                    CompanyLocation.valueOf(rs.getString(LOCATION.value())),
                     rs.getString(SALARY_TEXT.value()),
                     rs.getBigDecimal(SALARY_MIN.value()),
                     rs.getBigDecimal((SALARY_MAX.value())),
