@@ -36,11 +36,11 @@ public class Candidate extends Account {
             String fullName, String email,
             Instant createdAt,
             Instant updatedAt) {
-        super(userId, displayCode, fullName, email, AccountRole.Candidate, createdAt, updatedAt);
+        super(userId, displayCode, fullName, email, AccountRole.CANDIDATE, createdAt, updatedAt);
     }
 
     //Constructor dùng khi tạo tài khoản candidate bằng provider
     public Candidate(String displayCode, String fullName, String email, AccountProvider provider, String providerId) {
-        super(displayCode, fullName, email, AccountRole.Candidate, provider, providerId);
+        super(displayCode, fullName, email, AccountRole.CANDIDATE, provider, providerId);
     }
 }

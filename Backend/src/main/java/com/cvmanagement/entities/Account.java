@@ -54,8 +54,8 @@ public class Account {
         this.role = role;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
-        this.status = AccountStatus.Active;
-        this.provider = AccountProvider.Email;
+        this.status = AccountStatus.ACTIVE;
+        this.provider = AccountProvider.LOCAL;
         this.twoFactorEnabled = false;
         this.phone = null;
         this.address = null;
@@ -71,7 +71,7 @@ public class Account {
         this.fullname = fullname;
         this.email = email;
         this.role = role;
-        this.status = AccountStatus.Active;
+        this.status = AccountStatus.ACTIVE;
         this.provider = provider;
         this.providerId = providerId;
         this.twoFactorEnabled = false;

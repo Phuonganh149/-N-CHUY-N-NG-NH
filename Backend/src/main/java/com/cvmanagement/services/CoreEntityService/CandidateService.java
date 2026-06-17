@@ -43,7 +43,7 @@ public class CandidateService implements CoreEntityServiceInterface<Candidate, U
     @Override
     public void create(SignupAccount signupAccount) throws Exception {
         //Thêm vào CSDL
-        String newDisplayID = DisplayIDGenerator.generateID(AccountRole.Candidate);
+        String newDisplayID = DisplayIDGenerator.generateID(AccountRole.CANDIDATE);
         Candidate currCandidate = new Candidate(signupAccount.userId(), newDisplayID, signupAccount.fullname(), signupAccount.email(), signupAccount.createdAt(), signupAccount.updatedAt());
 
         try {

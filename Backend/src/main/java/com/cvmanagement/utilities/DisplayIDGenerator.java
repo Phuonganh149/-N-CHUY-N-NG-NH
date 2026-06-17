@@ -5,7 +5,6 @@ import com.cvmanagement.enums.AccountRole;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
-
 import java.util.StringJoiner;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -13,25 +12,22 @@ import java.util.concurrent.ThreadLocalRandom;
 public class DisplayIDGenerator {
     // Cách ID hiển thị được tạo:
     // Prefix tương ứng với role + ngày tháng năm tài khoản tạo + 5 ký tự base64
-    public static String generateID(AccountRole role){
+    public static String generateID(AccountRole role) {
         StringJoiner newDisplayID = new StringJoiner("-");
         String prefix = "";
-        switch(role){
-            case Candidate -> prefix="CA";
-            case HR -> prefix="RE";
-            case Admin -> prefix="AD";
-            case null, default -> prefix="UN";
-        }
+        if (role.toString().equals(AccountRole.CANDIDATE.value())) prefix = "CAN";
+        if (role.toString().equals(AccountRole.ADMIN.value())) prefix = "AD";
+        if (role.toString().equals(AccountRole.COMPANY.value())) prefix = "COM";
         newDisplayID.add(prefix);
         newDisplayID.add(LocalDateTime.now().format(DateTimeFormatter.ofPattern("ddMMyy")));
         String randCode = "";
-        do{
+        do {
             byte[] bytes = new byte[4];
             ThreadLocalRandom.current().nextBytes(bytes);
             randCode = Base64.getEncoder()
                     .withoutPadding()
                     .encodeToString(bytes);
-        }while (randCode.contains("-"));
+        } while (randCode.contains("-"));
 
         newDisplayID.add(randCode);
 
@@ -44,7 +40,7 @@ public class DisplayIDGenerator {
 //            System.out.println(generateID(AccountRole.Candidate));
 //        }
 //        for (int i = 0;i<2;i++){
-//            System.out.println(generateID(AccountRole.Admin));
+//            System.out.println(generateID(AccountRole.ADMIN));
 //        }
 //        for (int i = 0;i<2;i++){
 //            System.out.println(generateID(AccountRole.HR));

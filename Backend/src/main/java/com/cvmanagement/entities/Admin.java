@@ -17,11 +17,11 @@ public class Admin extends Account {
 
     //Constructor khi tạo tài khoản local
     public Admin(UUID userId, String displayCode, String fullname, String email, Instant createdAt, Instant updatedAt) {
-        super(userId, displayCode, fullname, email, AccountRole.Admin, createdAt, updatedAt);
+        super(userId, displayCode, fullname, email, AccountRole.ADMIN, createdAt, updatedAt);
     }
 
     //Constructor khi tạo tài khoản với provider
     public Admin(String displayCode, String fullname, String email, AccountProvider provider, String providerId) {
-        super(displayCode, fullname, email, AccountRole.Admin, provider, providerId);
+        super(displayCode, fullname, email, AccountRole.ADMIN, provider, providerId);
     }
 }

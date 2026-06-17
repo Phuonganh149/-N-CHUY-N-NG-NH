@@ -15,7 +15,7 @@ public class SupscriptionController {
     @PostMapping
     public ResponseEntity<String> createSubscription(@RequestBody SubscriptionPostRequest request) {
         try {
-            subscriptionService.create();
+            subscriptionService.create(request);
             return ResponseEntity.ok("Thành công");
         } catch (BusinessException e) {
             return new ResponseEntity<>("Không thể tạo plan mới do " + e.getMessage(), HttpStatusCode.valueOf(400));

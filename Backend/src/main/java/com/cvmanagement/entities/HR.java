@@ -17,12 +17,12 @@ public class HR extends Account {
 
     //Constructor khi tạo tài khoản local
     public HR(UUID userId, String displayCode, String fullname, String email, Instant createdAt, Instant updatedAt) {
-        super(userId, displayCode, fullname, email, AccountRole.HR, createdAt, updatedAt);
+        super(userId, displayCode, fullname, email, AccountRole.COMPANY, createdAt, updatedAt);
     }
 
     //Constructor khi tạo tài khoản với provider
 
     public HR(String displayCode, String fullname, String email, AccountProvider provider, String providerId) {
-        super(displayCode, fullname, email, AccountRole.HR, provider, providerId);
+        super(displayCode, fullname, email, AccountRole.COMPANY, provider, providerId);
     }
 }

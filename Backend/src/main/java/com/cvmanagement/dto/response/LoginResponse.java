@@ -22,7 +22,7 @@ public class LoginResponse {
         this.address = logInAccount.getAddress();
         this.email = logInAccount.getEmail();
         this.phone = logInAccount.getPhone();
-        this.role = logInAccount.getRole().toString();
+        this.role = logInAccount.getRole().value();
     }
 
     public String getToken() {

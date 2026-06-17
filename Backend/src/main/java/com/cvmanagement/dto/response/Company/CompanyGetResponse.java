@@ -23,7 +23,7 @@ public class CompanyGetResponse {
         this.name = company.getName();
         this.slug = company.getSlug();
         this.industry = company.getIndustry();
-        this.location = company.getLocation();
+        this.location = String.valueOf(company.getLocation());
         this.plan = company.getPlan();
         this.status = company.getStatus();
         this.created_at = company.getCreatedAt();

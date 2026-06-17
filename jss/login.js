@@ -205,6 +205,7 @@ async function handleSignIn(e) {
             }
             return;
         }
+
         const accessToken = authResult.data.session?.access_token;
         if (!accessToken) { showToast('Không lấy được phiên đăng nhập.', 'error'); return; }
         let result;

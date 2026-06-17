@@ -3,7 +3,9 @@ package com.cvmanagement.services.CoreEntityService;
 import com.cvmanagement.dto.request.Subscription.SubscriptionPatchRequest;
 import com.cvmanagement.dto.request.Subscription.SubscriptionPostRequest;
 import com.cvmanagement.entities.Subscription;
+import org.springframework.stereotype.Service;
 
+@Service
 public class SubscriptionService implements CoreEntityServiceInterface<Subscription, String, SubscriptionPostRequest, SubscriptionPatchRequest> {
     @Override
     public void create(SubscriptionPostRequest request) throws Exception {
