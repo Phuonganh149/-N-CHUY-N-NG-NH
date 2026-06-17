@@ -38,3 +38,5 @@ xcuserdata/
 
 # Supabase local link/cache
 supabase/.temp/
+application.properties 
+Backend/src/main/resources/application.properties 
